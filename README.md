@@ -1,221 +1,221 @@
-# laIAUI - Interfície Gràfica d'IA amb Execució de Comandes
+# laIAUI - AI Assistant GUI with Terminal Execution
 
-Una aplicació GUI moderna escrita en C++ que combina un assistent d'IA amb capacitat per executar comandes de terminal en temps real.
+A modern GUI application written in C++ that combines an AI assistant with real-time terminal command execution capabilities.
 
-## Característiques Principals
+## Main Features
 
-### 🤖 **Assistent d'IA Integrat**
-- Connexió amb l'API de DeepSeek
-- Streaming de respostes en temps real
-- Historial de conversa persistent
-- Interfície en català per defecte
+### 🤖 **Integrated AI Assistant**
+- Connection to DeepSeek API
+- Real-time response streaming
+- Persistent conversation history
+- Catalan language by default (configurable)
 
-### 💻 **Execució de Comandes**
-- Execució segura de comandes de terminal GNU/Linux
-- Visualització en temps real de stdout/stderr
-- Resultats col·lapsables amb detalls complets
-- Canvi de directori de treball
+### 💻 **Terminal Command Execution**
+- Safe execution of GNU/Linux terminal commands
+- Real-time stdout/stderr display
+- Collapsible results with full details
+- Working directory management
 
-### 🎨 **Interfície Gràfica Moderna**
-- Basada en ImGui + GLFW + OpenGL 3.3
-- Disseny arrodonit i atractiu
-- Colors diferenciats per tipus de missatge
-- Auto-scroll i enfocament automàtic
-- Menú contextual per copiar el xat sencer
+### 🎨 **Modern Graphical Interface**
+- Based on ImGui + GLFW + OpenGL 3.3
+- Rounded and attractive design
+- Different colors for message types
+- Auto-scroll and automatic focus
+- Context menu to copy entire chat
 
-### ⚡ **Funcionament en Temps Real**
-- Streaming de respostes de l'IA
-- Execució asíncrona de comandes
-- Gestió de múltiples tasques simultànies
-- Indicador visual d'estat (Online/Thinking/Offline)
+### ⚡ **Real-time Operation**
+- AI response streaming
+- Asynchronous command execution
+- Multiple simultaneous task management
+- Visual status indicator (Online/Thinking/Offline)
 
-## Estructura del Codi
+## Code Structure
 
-### Classes Principals
+### Main Classes
 
 1. **`TerminalEmulator`**
-   - Execució segura de comandes de terminal
-   - Gestió de directori de treball
-   - Captura de stdout/stderr
+   - Safe execution of terminal commands
+   - Working directory management
+   - stdout/stderr capture
 
 2. **`DeepSeekClient`**
-   - Client per a l'API de DeepSeek
-   - Suport per streaming amb tool calls
-   - Gestió d'historial de conversa
+   - Client for DeepSeek API
+   - Support for streaming with tool calls
+   - Conversation history management
 
 3. **`AsyncTaskManager`**
-   - Gestió de tasques asíncrones
-   - Cua de missatges per streaming
-   - Callbacks per actualitzacions en temps real
+   - Asynchronous task management
+   - Message queue for streaming
+   - Callbacks for real-time updates
 
 4. **`ChatApplication`**
-   - Lògica principal de l'aplicació
-   - Gestió d'estat de la GUI
-   - Processament de missatges i resultats
+   - Main application logic
+   - GUI state management
+   - Message and result processing
 
-### Components de la GUI
+### GUI Components
 
-- **Àrea de Xat**: Mostra la conversa amb colors diferenciats
-- **Entrada de Text**: Multilínia amb suport per tabulacions
-- **Resultats de Comandes**: Visualització col·lapsable amb detalls
-- **Barra de Menú**: Opcions de neteja i sortida
-- **Indicador d'Estat**: Visualització de l'estat de connexió
+- **Chat Area**: Displays conversation with color-coded messages
+- **Text Input**: Multiline input with tab support
+- **Command Results**: Collapsible display with detailed information
+- **Menu Bar**: Clear chat and exit options
+- **Status Indicator**: Connection status visualization
 
-## Requisits del Sistema
+## System Requirements
 
-### Dependències
-- **CMake** (>= 3.10)
-- **GLFW3** (per a la finestra i gestió d'esdeveniments)
+### Dependencies
+- **CMake** (>= 3.15)
+- **GLFW3** (for window and event management)
 - **OpenGL** (>= 3.3)
-- **cURL** (per a connexions HTTP)
-- **nlohmann/json** (per a processament JSON)
-- **ImGui** (inclòs com a submodule)
+- **cURL** (for HTTP connections)
+- **nlohmann/json** (for JSON processing)
+- **ImGui** (included as submodule)
 
-### Variables d'Entorn
+### Environment Variables
 ```bash
-export DEEPSEEK_API_KEY="la_teva_clau_api_aquí"
+export DEEPSEEK_API_KEY="your_api_key_here"
 ```
 
-## Compilació i Execució
+## Compilation and Execution
 
-### Compilació
+### Compilation
 ```bash
-# Clonar el repositori
-git clone https://github.com/tu-usuari/laIAUI.git
+# Clone the repository
+git clone https://github.com/your-username/laIAUI.git
 cd laIAUI
 
-# Inicialitzar submodules
+# Initialize submodules
 git submodule update --init --recursive
 
-# Crear directori de compilació
+# Create build directory
 mkdir build && cd build
 
-# Configurar amb CMake
+# Configure with CMake
 cmake ..
 
-# Compilar
+# Compile
 make
 ```
 
-### Execució
+### Execution
 ```bash
-# Assegurar-se que la clau API està configurada
-export DEEPSEEK_API_KEY="la_teva_clau_api"
+# Ensure API key is configured
+export DEEPSEEK_API_KEY="your_api_key"
 
-# Executar l'aplicació
+# Run the application
 ./laIAUI
 ```
 
-## Ús de l'Aplicació
+## Application Usage
 
-### Inici de Conversa
-1. Inicia l'aplicació
-2. Escriu el teu missatge a l'àrea de text inferior
-3. Prem Enter o fes clic a "Send"
+### Starting a Conversation
+1. Launch the application
+2. Type your message in the bottom text area
+3. Press Enter or click "Send"
 
-### Execució de Comandes
-L'IA pot executar comandes de terminal automàticament quan ho consideri necessari. Els resultats es mostren com a elements col·lapsables que inclouen:
-- Explicació de la comanda
-- Sortida estàndard (stdout)
+### Command Execution
+The AI can execute terminal commands automatically when deemed necessary. Results are displayed as collapsible elements that include:
+- Command explanation
+- Standard output (stdout)
 - Errors (stderr)
-- Directori actual
-- Estat i codi de retorn
+- Current directory
+- Status and return code
 
-### Funcions Especials
-- **Ctrl+N**: Netejar el xat
-- **Ctrl+Q**: Sortir de l'aplicació
-- **Clic dret a l'àrea de xat**: Copiar tot el xat
-- **Checkbox "Tools"**: Activar/desactivar execució de comandes
+### Special Functions
+- **Ctrl+N**: Clear chat
+- **Ctrl+Q**: Exit application
+- **Right-click on chat area**: Copy entire chat
+- **"Tools" checkbox**: Enable/disable command execution
 
-## Estructura de Projecte
+## Project Structure
 ```
 laIAUI/
-├── main.cpp              # Codi font principal
-├── CMakeLists.txt        # Configuració de CMake
-├── README.md            # Aquest fitxer
-├── imgui/               # Submodule d'ImGui
-└── build/               # Directori de compilació
+├── main.cpp              # Main source code
+├── CMakeLists.txt        # CMake configuration
+├── README.md            # This file
+├── imgui/               # ImGui submodule
+└── build/               # Build directory
 ```
 
-## Configuració de la GUI
+## GUI Configuration
 
-### Estils
-- Finestres arrodonides (10px)
-- Botons arrodonits (8px)
-- Colors personalitzats per tipus de missatge:
-  - **Usuari**: Blau cian
-  - **IA**: Groc verdós
-  - **Sistema**: Verd clar
-  - **Comandes**: Gris amb detalls expandibles
+### Styles
+- Rounded windows (10px)
+- Rounded buttons (8px)
+- Custom colors for message types:
+  - **User**: Cyan blue
+  - **AI**: Yellow-green
+  - **System**: Light green
+  - **Commands**: Gray with expandable details
 
-### Layout Responsiu
-- Redimensionament automàtic
-- Àrea de xat ajustable
-- Entrada de text multilínia
-- Botons adaptatius
+### Responsive Layout
+- Automatic resizing
+- Adjustable chat area
+- Multiline text input
+- Adaptive buttons
 
-## Gestió d'Errors
+## Error Management
 
-### Errors de Connexió
-- Missatge clar quan falta la clau API
-- Indicador "Offline" a la barra de menú
-- Suggeriment per configurar la variable d'entorn
+### Connection Errors
+- Clear message when API key is missing
+- "Offline" indicator in menu bar
+- Suggestion to configure environment variable
 
-### Errors d'Execució
-- Visualització de stderr en vermell
-- Codi de retorn visible
-- Estat de fallada clarament indicat
+### Execution Errors
+- stderr display in red
+- Visible return code
+- Clearly indicated failure status
 
-## Seguretat
+## Security
 
-### Execució de Comandes
-- Execució en el directori de treball actual
-- Captura separada de stdout/stderr
-- Limitació de permisos (executa com a l'usuari actual)
+### Command Execution
+- Execution in current working directory
+- Separate stdout/stderr capture
+- Permission limitation (runs as current user)
 
-### Gestió de Memòria
-- Ús de smart pointers (unique_ptr)
-- Neteja adequada de recursos
-- Gestió d'excepcions
+### Memory Management
+- Use of smart pointers (unique_ptr)
+- Proper resource cleanup
+- Exception handling
 
-## Personalització
+## Customization
 
-### Modificació del Prompt del Sistema
-Edita la línia 490 de `main.cpp`:
+### System Prompt Modification
+Edit line 350 in `main.cpp`:
 ```cpp
 string systemPrompt = "Ets un assistent AI útil que parla català. Pots executar comandes de terminal quan sigui necessari.";
 ```
 
-### Canvi d'API
-Modifica el constructor de `DeepSeekClient` (línia 290) per utilitzar un altre endpoint.
+### Custom Prompt File
+You can create a `prompt.md` file in the current directory with additional instructions. The application will automatically read and append it to the system prompt.
 
-## Contribucions
+### API Change
+Modify the `DeepSeekClient` constructor (line 170) to use a different endpoint.
 
-Les contribucions són benvingudes! Si us plau:
+## Contributions
 
-1. Fes un fork del projecte
-2. Crea una branca per a la teva característica
-3. Fes commit dels teus canvis
-4. Fes push a la branca
-5. Obre un Pull Request
+Contributions are welcome! Please:
 
-## Llicència
+1. Fork the project
+2. Create a branch for your feature
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
 
-Aquest projecte està sota la llicència MIT. Consulta el fitxer `LICENSE` per a més detalls.
+## Acknowledgments
 
-## Agraïments
+- **ImGui**: For the fantastic immediate mode GUI library
+- **DeepSeek**: For the accessible AI API
+- **GLFW**: For cross-platform window management
+- **All contributors**: For making this project possible
 
-- **ImGui**: Per la fantàstica llibreria d'interfície immediata
-- **DeepSeek**: Per l'API d'IA accessible
-- **GLFW**: Per la gestió multiplataforma de finestres
-- **Tots els contribuïdors**: Per fer possible aquest projecte
+## Contact
 
-## Contacte
-
-Per a preguntes o suport:
-- Obre un issue al GitHub del projecte
-- Contacta amb el mantenedor principal
+For questions or support:
+- Open an issue on the project GitHub
+- Contact the main maintainer
 
 ---
 
-**Nota**: Aquesta aplicació requereix una clau API vàlida de DeepSeek per funcionar. Assegura't de configurar la variable d'entorn `DEEPSEEK_API_KEY` abans d'executar l'aplicació.# laIAUI
+**Note**: This application requires a valid DeepSeek API key to function. Make sure to set the `DEEPSEEK_API_KEY` environment variable before running the application.
+EOF 2>/tmp/laia_stderr_1770306749.txt
