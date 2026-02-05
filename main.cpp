@@ -19,6 +19,8 @@
 #include <condition_variable>
 #include <queue>
 #include <future>
+#include <fstream>
+#include <sstream>
 
 using json = nlohmann::json;
 using namespace std;
@@ -52,6 +54,11 @@ public:
             }
         } else {
             workingDir = initialDir;
+        }
+        
+        // Normalitzar el path per assegurar-nos que no hi ha barra final
+        if (!workingDir.empty() && workingDir.back() == '/') {
+            workingDir.pop_back();
         }
     }
     
@@ -341,9 +348,26 @@ public:
         
         // Add system prompt
         string systemPrompt = "Ets un assistent AI útil que parla català. Pots executar comandes de terminal quan sigui necessari.";
-        messages.push_back({{"role", "system"}, {"content", systemPrompt}});
         
-        // Add chat history
+        // Intentar llegir el fitxer prompt.md del directori actual
+        string promptFilePath = terminal->getCurrentDir() + "/prompt.md";
+        ifstream promptFile(promptFilePath);
+        
+        if (promptFile.is_open()) {
+            stringstream buffer;
+            buffer << promptFile.rdbuf();
+            string customPrompt = buffer.str();
+            
+            if (!customPrompt.empty()) {
+                // Afegir el contingut del prompt.md al system prompt
+                systemPrompt = systemPrompt + "\n\n" +  customPrompt;
+                cout << "CUSTOM PROMPT: " << customPrompt << endl;
+            }
+            promptFile.close();
+        }
+        
+        messages.push_back({{"role", "system"}, {"content", systemPrompt}});        // Add chat history
+
         for (const auto& msg : chatHistory) {
             messages.push_back(msg);
         }
@@ -460,7 +484,7 @@ public:
         return {fullResponse, messages};
     }
 
-    void chatStream(const string& userMessage, function<void(const string&)> onChunk, bool useTools = true) {
+    void chatStream(const string& userMessage, function<void(const string&)> onChunk, bool useTools = false) {
         auto [fullResponse, updatedMessages] = chatWithToolsStreaming(userMessage, onChunk, useTools);
         
         if (!fullResponse.empty()) {
@@ -756,10 +780,10 @@ private:
     int nextCommandId;
     
     static void renderMarkdownText(const string& text, bool isStreaming = false) {
-        // Si està buit, no fer res
         if (text.empty()) return;
         ImGui::TextWrapped("%s", text.c_str());
     }
+
 
 public:
     // Estructura per emmagatzemar missatges amb tipus
@@ -768,13 +792,19 @@ public:
         enum Type { USER, AI, COMMAND_OUTPUT, COMMAND_ERROR, SYSTEM } type;
     };
     
+    string getCurrentDirectory() const {
+        if (asyncTaskManager) {
+            return asyncTaskManager->getCurrentDirectory();
+        }
+        return "N/A";
+    }
 private:
     vector<ChatMessage> chatMessages;
 
 
 public:
     ChatApplication() : isInitialized(false), isProcessingTask(false), 
-                       requestFocusAfterResponse(false), toolsEnabled(true),
+                       requestFocusAfterResponse(false), toolsEnabled(false),
                        isStreaming(false), nextCommandId(0) {
         memset(textBuffer, 0, sizeof(textBuffer));
     }
@@ -1434,6 +1464,10 @@ int main(int argc, char *argv[]) {
             ImGui::EndTooltip();
         }
 
+        // current path
+        ImGui::SameLine();
+        string currentDir = chatApp.getCurrentDirectory();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "%s", currentDir.c_str());
 
         // Send message when Enter is pressed or Send button is clicked
         if ((textEnterPressed || sendButtonPressed) && chatApp.getTextBuffer()[0] != '\0' && !chatApp.getIsProcessingTask()) {
