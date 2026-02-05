@@ -861,7 +861,7 @@ public:
             [this, chunkCounter](const string& chunk) mutable {
                 // Aquest callback s'executa quan arriba un chunk
                 chunkCounter++;
-                cout << "[CHAT] Chunk " << chunkCounter << " obtained: '" << chunk << "'" << endl;
+                //cout << "[CHAT] Chunk " << chunkCounter << " obtained: '" << chunk << "'" << endl;
                 
                 // Afegir el chunk a la resposta acumulada
                 streamingResponse += chunk;
@@ -981,7 +981,7 @@ void toggleCommandExpanded(const string& commandId) {
     bool getToolsEnabled() const { return toolsEnabled; }
     void setToolsEnabled(bool enabled) { toolsEnabled = enabled; }
 
-    // Funció per copiar tot el text del xat al portapapers
+    // Clipboard
     string getAllChatText() const {
         string allText;
         for (const auto& message : chatMessages) {
@@ -1147,7 +1147,7 @@ int main(int argc, char *argv[]) {
         
         // Afegir menú contextual al ChatArea
         if (ImGui::BeginPopupContextWindow("ChatContextMenu")) {
-            if (ImGui::MenuItem("Copiar tot el xat")) {
+            if (ImGui::MenuItem("Copy all")) {
                 string allChatText = chatApp.getAllChatText();
                 ImGui::SetClipboardText(allChatText.c_str());
             }
@@ -1176,7 +1176,7 @@ int main(int argc, char *argv[]) {
                             string explanation = result["explanation"];
                             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
                             ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
-                            ImGui::TextWrapped("what: %s", explanation.c_str());
+                            ImGui::TextWrapped("what:  %s", explanation.c_str());
                             ImGui::PopFont();
                             ImGui::PopStyleColor();
                             ImGui::Spacing();
@@ -1204,8 +1204,7 @@ int main(int argc, char *argv[]) {
                         if (isExpanded) {
                             flags |= ImGuiTreeNodeFlags_DefaultOpen;
                         }
-                        
-                        // **Capturar el resultat del CollapsingHeader**
+
                         bool headerOpen = ImGui::CollapsingHeader(headerLabel.c_str(), flags);
                         
                         ImGui::PopStyleColor(3);
