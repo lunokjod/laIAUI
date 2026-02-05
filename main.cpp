@@ -923,7 +923,6 @@ public:
         {
             lock_guard<mutex> lock(messagesMutex);
             chatMessages.clear();
-            // **FIX: Netejar també els estats dels comandaments**
             commandOutputStates.clear();
             nextCommandId = 0;
         }
@@ -931,7 +930,7 @@ public:
             lock_guard<mutex> lock(pendingResultsMutex);
             pendingCommandResults.clear();
         }
-        addMessage("Type something to begin...", ChatMessage::SYSTEM);
+        addMessage("Type something to start...", ChatMessage::SYSTEM);
         
         // Cancel any pending streaming task
         if (isProcessingTask) {
