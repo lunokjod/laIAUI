@@ -755,6 +755,180 @@ private:
     vector<CommandOutputState> commandOutputStates;
     int nextCommandId;
     
+    static void renderMarkdownText(const string& text) {
+        // Estats del parser
+        bool inBold = false;
+        bool inItalic = false;
+        bool inCode = false;
+        bool inCodeBlock = false;
+        string codeBlockLanguage;
+        vector<string> codeBlockLines;
+        
+        size_t pos = 0;
+        size_t textLength = text.length();
+        
+        while (pos < textLength) {
+            // Detectar codi en línia
+            if (!inCodeBlock && text.compare(pos, 1, "`") == 0) {
+                if (pos + 2 < textLength && text.compare(pos, 3, "```") == 0) {
+                    // Inici o fi de bloc de codi
+                    if (!inCodeBlock) {
+                        // Inici de bloc de codi
+                        inCodeBlock = true;
+                        codeBlockLines.clear();
+                        
+                        // Saltar els ```
+                        pos += 3;
+                        
+                        // Intentar detectar llenguatge
+                        size_t langStart = pos;
+                        while (pos < textLength && text[pos] != '\n' && !isspace(text[pos])) {
+                            pos++;
+                        }
+                        if (pos > langStart) {
+                            codeBlockLanguage = text.substr(langStart, pos - langStart);
+                        }
+                        
+                        // Saltar fins a la següent línia
+                        while (pos < textLength && text[pos] != '\n') {
+                            pos++;
+                        }
+                        if (pos < textLength && text[pos] == '\n') {
+                            pos++;
+                        }
+                    } else {
+                        // Fi de bloc de codi - renderitzar el bloc
+                        inCodeBlock = false;
+                        
+                        // Renderitzar bloc de codi amb fons fosc
+                        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+                        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+                        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
+                        
+                        if (ImGui::BeginChild("##CodeBlock", ImVec2(0, ImGui::GetTextLineHeight() * min((int)codeBlockLines.size() + 2, 20)), true)) {
+                            // Mostrar llenguatge si n'hi ha
+                            if (!codeBlockLanguage.empty()) {
+                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 1.0f, 1.0f));
+                                ImGui::Text("%s", codeBlockLanguage.c_str());
+                                ImGui::PopStyleColor();
+                                ImGui::Separator();
+                            }
+                            
+                            // Mostrar línies de codi
+                            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]); // Font monospace
+                            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
+                            
+                            for (const auto& line : codeBlockLines) {
+                                ImGui::TextWrapped("%s", line.c_str());
+                            }
+                            
+                            ImGui::PopStyleColor();
+                            ImGui::PopFont();
+                        }
+                        ImGui::EndChild();
+                        
+                        ImGui::PopStyleVar(2);
+                        ImGui::PopStyleColor();
+                        
+                        // Saltar els ```
+                        pos += 3;
+                    }
+                    continue;
+                } else {
+                    // Codi en línia
+                    inCode = !inCode;
+                    if (inCode) {
+                        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[1]); // Font monospace
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.2f, 1.0f));
+                    } else {
+                        ImGui::PopStyleColor();
+                        ImGui::PopFont();
+                    }
+                    pos++;
+                    continue;
+                }
+            }
+            
+            // Detectar negreta
+            if (!inCode && !inCodeBlock && text.compare(pos, 2, "**") == 0) {
+                inBold = !inBold;
+                if (inBold) {
+                    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[2]); // Font bold
+                } else {
+                    ImGui::PopFont();
+                }
+                pos += 2;
+                continue;
+            }
+            
+            // Detectar cursiva
+            if (!inCode && !inCodeBlock && text.compare(pos, 1, "*") == 0) {
+                inItalic = !inItalic;
+                if (inItalic) {
+                    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[3]); // Font italic
+                } else {
+                    ImGui::PopFont();
+                }
+                pos++;
+                continue;
+            }
+            
+            // Si estem dins d'un bloc de codi, acumular línies
+            if (inCodeBlock) {
+                size_t lineEnd = text.find('\n', pos);
+                if (lineEnd == string::npos) {
+                    lineEnd = textLength;
+                }
+                
+                string line = text.substr(pos, lineEnd - pos);
+                codeBlockLines.push_back(line);
+                
+                pos = lineEnd;
+                if (pos < textLength && text[pos] == '\n') {
+                    pos++;
+                }
+                continue;
+            }
+            
+            // Trobar el proper caràcter especial
+            size_t nextSpecial = textLength;
+            size_t nextBold = text.find("**", pos);
+            size_t nextItalic = text.find("*", pos);
+            size_t nextCode = text.find("`", pos);
+            size_t nextCodeBlock = text.find("```", pos);
+            size_t nextNewline = text.find('\n', pos);
+            
+            if (nextBold != string::npos && nextBold < nextSpecial) nextSpecial = nextBold;
+            if (nextItalic != string::npos && nextItalic < nextSpecial) nextSpecial = nextItalic;
+            if (nextCode != string::npos && nextCode < nextSpecial) nextSpecial = nextCode;
+            if (nextCodeBlock != string::npos && nextCodeBlock < nextSpecial) nextSpecial = nextCodeBlock;
+            if (nextNewline != string::npos && nextNewline < nextSpecial) nextSpecial = nextNewline;
+            
+            // Renderitzar text normal
+            if (nextSpecial > pos) {
+                string normalText = text.substr(pos, nextSpecial - pos);
+                ImGui::TextWrapped("%s", normalText.c_str());
+                if (nextSpecial < textLength && ImGui::GetItemRectMax().x < ImGui::GetWindowContentRegionMax().x - 10) {
+                    ImGui::SameLine(0, 0);
+                }
+                pos = nextSpecial;
+            }
+            
+            // Processar salts de línia
+            if (pos < textLength && text[pos] == '\n') {
+                ImGui::NewLine();
+                pos++;
+            }
+        }
+        
+        // Netejar estats si s'han quedat oberts (error en el markdown)
+        if (inBold) ImGui::PopFont();
+        if (inItalic) ImGui::PopFont();
+        if (inCode) {
+            ImGui::PopStyleColor();
+            ImGui::PopFont();
+        }
+    }
 public:
     // Estructura per emmagatzemar missatges amb tipus
     struct ChatMessage {
@@ -776,6 +950,40 @@ public:
     ~ChatApplication() {
     }
  
+    // Funció per renderitzar text amb Markdown
+    static void renderTextWithMarkdown(const string& text, bool isStreaming = false) {
+        // Si està buit, no fer res
+        if (text.empty()) return;
+        
+        // Separar el prefix "IA: " si existeix
+        string displayText = text;
+        bool hasPrefix = false;
+        if (text.find("IA: ") == 0) {
+            displayText = text.substr(4);
+            hasPrefix = true;
+        } else if (text.find("Tu: ") == 0) {
+            displayText = text.substr(4);
+            hasPrefix = true;
+        }
+        
+        // Renderitzar prefix si n'hi ha
+        if (hasPrefix) {
+            string prefix = text.substr(0, 4);
+            ImGui::TextWrapped("%s", prefix.c_str());
+            ImGui::SameLine(0, 0);
+        }
+        
+        // Renderitzar el text amb Markdown
+        renderMarkdownText(displayText);
+        
+        // Afegir cursor si està en streaming
+        if (isStreaming) {
+            ImGui::SameLine(0, 0);
+            ImGui::Text("█");
+        }
+    }
+
+
     void addPendingCommandResult(const json& result) {
         lock_guard<mutex> lock(pendingResultsMutex);
         pendingCommandResults.push_back(result);
@@ -1030,6 +1238,31 @@ int main(int argc, char *argv[]) {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImFont* fontRegular = io.Fonts->AddFontDefault();
+    
+    // Font monospace per a codi
+    ImFont* fontMono = io.Fonts->AddFontFromFileTTF(
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",  // Ruta comuna a Linux
+        14.0f
+    );
+    
+    // Font bold (podem escalar la font regular)
+    ImFont* fontBold = io.Fonts->AddFontFromFileTTF(
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        14.0f
+    );
+    
+    // Font italic
+    ImFont* fontItalic = io.Fonts->AddFontFromFileTTF(
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+        14.0f
+    );
+    
+    // Si no es troben les fonts, utilitzar les per defecte
+    if (!fontMono) fontMono = io.Fonts->AddFontDefault();
+    if (!fontBold) fontBold = io.Fonts->AddFontDefault();
+    if (!fontItalic) fontItalic = io.Fonts->AddFontDefault();
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -1306,7 +1539,14 @@ int main(int argc, char *argv[]) {
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 0.5f, 1.0f));
                     break;
             }
-            
+
+            bool isLastMessage = (i == messages.size() - 1);
+            bool isAIStreaming = (isLastMessage && 
+                                message.type == ChatApplication::ChatMessage::AI &&
+                                chatApp.getIsStreaming());        
+            ChatApplication::renderTextWithMarkdown(message.text, isAIStreaming);
+
+                /*
             // Si és l'últim missatge d'IA i està en streaming, afegir cursor parpellejant
             if (i == messages.size() - 1 && 
                 message.type == ChatApplication::ChatMessage::AI &&
@@ -1316,7 +1556,8 @@ int main(int argc, char *argv[]) {
                 ImGui::TextWrapped("%s", textWithCursor.c_str());
             } else {
                 ImGui::TextWrapped("%s", message.text.c_str());
-            }
+                // AAAAAAAAAAAAAAAAAAAAAAAAA
+            }*/
             
             ImGui::PopStyleColor();
             
