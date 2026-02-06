@@ -503,7 +503,7 @@ public:
                         {"type", "object"},
                         {"properties", {
                             {"command", {{"type", "string"}, {"description", "Comanda a executar (ex: 'ls -la', 'pwd', 'cat fitxer.txt')"}}},
-                            {"explanation", {{"type", "string"}, {"description", "Explicació de què fa la comanda i per què s'executa, defineix quina es la intenció"}}}
+                            {"explanation", {{"type", "string"}, {"description", "Explicació de què fa la comanda i per què s'executa, quina es la intenció"}}}
                         }},
                         {"required", {"command", "explanation"}}
                     }}
@@ -778,12 +778,143 @@ private:
     
     vector<CommandOutputState> commandOutputStates;
     int nextCommandId;
-    
+
     static void renderMarkdownText(const string& text, bool isStreaming = false) {
         if (text.empty()) return;
-        ImGui::TextWrapped("%s", text.c_str());
+        
+        // Separar el text per línies
+        vector<string> lines;
+        stringstream ss(text);
+        string line;
+        
+        while (getline(ss, line)) {
+            lines.push_back(line);
+        }
+        
+        // Processar cada línia
+        for (size_t i = 0; i < lines.size(); i++) {
+            string currentLine = lines[i];
+            
+            // Verificar si la línia està completament en negreta
+            bool isBoldLine = false;
+            string boldContent = "";
+            
+            // Patró: **text** (sense res més a la línia)
+            if (currentLine.length() >= 4 && 
+                currentLine.find("**") == 0) {
+                size_t endBold = currentLine.find("**", 2);
+                if (endBold != string::npos && 
+                    endBold == currentLine.length() - 2) {
+                    isBoldLine = true;
+                    boldContent = currentLine.substr(2, endBold - 2);
+                }
+            }
+            
+            // Verificar si és un títol (#, ##, ###, etc.)
+            bool isTitle = false;
+            int titleLevel = 0;
+            string titleContent = "";
+            
+            // Comprovar diferents nivells de títol
+            for (int level = 1; level <= 6; level++) {
+                string prefix = string(level, '#') + " ";
+                if (currentLine.length() >= prefix.length() && 
+                    currentLine.find(prefix) == 0) {
+                    isTitle = true;
+                    titleLevel = level;
+                    titleContent = currentLine.substr(prefix.length()); // Eliminar prefix
+                    break;
+                }
+            }
+            
+            // Verificar si és un separador (---)
+            bool isSeparator = false;
+            if (currentLine.length() >= 3) {
+                // Eliminar espais al principi i final
+                string trimmedLine = currentLine;
+                size_t firstNonSpace = trimmedLine.find_first_not_of(" \t");
+                size_t lastNonSpace = trimmedLine.find_last_not_of(" \t");
+                
+                if (firstNonSpace != string::npos && lastNonSpace != string::npos) {
+                    trimmedLine = trimmedLine.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
+                    
+                    // Comprovar si és un separador (--- o ***)
+                    if (trimmedLine.length() >= 3 && 
+                        (trimmedLine.find("---") == 0 || trimmedLine.find("***") == 0)) {
+                        // Verificar que tots els caràcters siguin '-' o '*'
+                        bool allSame = true;
+                        char firstChar = trimmedLine[0];
+                        for (char c : trimmedLine) {
+                            if (c != firstChar) {
+                                allSame = false;
+                                break;
+                            }
+                        }
+                        if (allSame && trimmedLine.length() >= 3) {
+                            isSeparator = true;
+                        }
+                    }
+                }
+            }
+            
+            // Netejar negretes del contingut del títol
+            if (isTitle) {
+                // Eliminar ** del principi i final si existeixen
+                if (titleContent.length() >= 4 && 
+                    titleContent.find("**") == 0) {
+                    size_t endBold = titleContent.find("**", 2);
+                    if (endBold != string::npos && 
+                        endBold == titleContent.length() - 2) {
+                        titleContent = titleContent.substr(2, endBold - 2);
+                    }
+                }
+            }
+            
+            if (isBoldLine) {
+                // Renderitzar en negreta (text normal en blanc)
+                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // Blanc
+                ImGui::TextWrapped("%s", boldContent.c_str());
+                ImGui::PopStyleColor();
+                ImGui::PopFont();
+            } else if (isTitle) {
+                // Renderitzar títol amb mida proporcional al nivell
+                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // Blanc
+                
+                // Configurar espai segons el nivell
+                float verticalPadding = 10.0f - (titleLevel * 1.0f); // Més padding per títols superiors
+                if (verticalPadding < 4.0f) verticalPadding = 4.0f;
+                
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, verticalPadding));
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 4));
+                
+                // Escalar la font segons el nivell del títol
+                // # = 1.4, ## = 1.3, ### = 1.2, #### = 1.1, etc.
+                float fontSizeScale = 1.5f - (titleLevel * 0.1f);
+                if (fontSizeScale < 1.0f) fontSizeScale = 1.0f;
+                
+                ImGui::SetWindowFontScale(fontSizeScale);
+                ImGui::TextWrapped("%s", titleContent.c_str());
+                ImGui::SetWindowFontScale(1.0f);
+                
+                ImGui::PopStyleVar(2);
+                ImGui::PopStyleColor();
+                ImGui::PopFont();
+            } else if (isSeparator) {
+                // Renderitzar separador
+                ImGui::Separator();
+            } else {
+                // Renderitzar normalment
+                ImGui::TextWrapped("%s", currentLine.c_str());
+            }
+            
+            // Afegir un petit espai entre línies (excepte l'última)
+            if (i < lines.size() - 1) {
+                ImGui::Spacing();
+            }
+        }
     }
-
 
 public:
     // Estructura per emmagatzemar missatges amb tipus
@@ -813,7 +944,6 @@ public:
     }
  
     // Funció per renderitzar text amb Markdown
-    // Funció per renderitzar text amb Markdown
     static void renderTextWithMarkdown(const string& text, bool isStreaming = false) {
         // Si està buit, no fer res
         if (text.empty()) return;
@@ -836,13 +966,12 @@ public:
             ImGui::SameLine(0, 0);
         }
         
-        // CORRECCIÓ: Passar el paràmetre isStreaming
         renderMarkdownText(displayText, isStreaming);
         
         // Afegir cursor si està en streaming
         if (isStreaming) {
             ImGui::SameLine(0, 0);
-            ImGui::Text("█");
+            ImGui::Bullet();
         }
     }
 
@@ -1104,32 +1233,26 @@ int main(int argc, char *argv[]) {
 
 
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    /*
+    // Font monospace amb suport Unicode
+    ImFont* fontMono = nullptr;
+    const char* monoPaths[] = {
+        "/usr/share/fonts/truetype/noto/NotoMono-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
+        nullptr
+    };
 
-    ImFont* fontRegular = io.Fonts->AddFontDefault();
-    
-    // Font monospace per a codi
-    ImFont* fontMono = io.Fonts->AddFontFromFileTTF(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",  // Ruta comuna a Linux
-        14.0f
-    );
-    
-    // Font bold (podem escalar la font regular)
-    ImFont* fontBold = io.Fonts->AddFontFromFileTTF(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        14.0f
-    );
-    
-    // Font italic
-    ImFont* fontItalic = io.Fonts->AddFontFromFileTTF(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
-        14.0f
-    );
-    
-    // Si no es troben les fonts, utilitzar les per defecte
+    for (int i = 0; monoPaths[i] != nullptr; i++) {
+        if (access(monoPaths[i], F_OK) != -1) {
+            fontMono = io.Fonts->AddFontFromFileTTF(monoPaths[i], 14.0f);
+            if (fontMono) break;
+        }
+    }
+
     if (!fontMono) fontMono = io.Fonts->AddFontDefault();
-    if (!fontBold) fontBold = io.Fonts->AddFontDefault();
-    if (!fontItalic) fontItalic = io.Fonts->AddFontDefault();
-
+    */
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
@@ -1152,6 +1275,14 @@ int main(int argc, char *argv[]) {
     // Arrodonir child windows
     style.ChildRounding = 8.0f;
 
+    ImVec4 bgColor = ImVec4(0.15f, 0.18f, 0.25f, 1.0f);
+    //style.Colors[ImGuiCol_WindowBg] = bgColor;
+    //style.Colors[ImGuiCol_ChildBg] = bgColor;
+    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.23f, 0.30f, 1.0f);
+    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.25f, 0.28f, 0.35f, 1.0f);
+    style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.30f, 0.33f, 0.40f, 1.0f);
+
+    // Create chat 
     // Create chat application
     ChatApplication chatApp;
     bool appInitialized = chatApp.initialize();
@@ -1500,6 +1631,7 @@ int main(int argc, char *argv[]) {
         glfwGetFramebufferSize(window, &displayWidth, &displayHeight);
         glViewport(0, 0, displayWidth, displayHeight);
         glClearColor(float(37.0/255.0), float(42.0/255.0), float(82.0/255.0), 1.00f);
+        //glClearColor(0.15f, 0.18f, 0.25f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         
         // Render ImGui
