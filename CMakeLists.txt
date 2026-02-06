@@ -34,6 +34,7 @@ set(IMGUI_SOURCES
 # Afegir executable amb TOTS els fitxers font
 add_executable(${PROJECT_NAME} 
     main.cpp
+    themes.cpp
     ${IMGUI_SOURCES}
 )
 

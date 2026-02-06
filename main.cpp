@@ -21,6 +21,7 @@
 #include <future>
 #include <fstream>
 #include <sstream>
+#include "themes.hpp"
 
 using json = nlohmann::json;
 using namespace std;
@@ -347,7 +348,7 @@ public:
         int iteration = 0;
         
         // Add system prompt
-        string systemPrompt = "Ets un assistent AI útil que parla català. Pots executar comandes de terminal quan sigui necessari.";
+        string systemPrompt = "Ets un assistent AI útil que parla català. Pots executar comandes de terminal quan sigui necessari. No usis emoticones.";
         
         // Intentar llegir el fitxer prompt.md del directori actual
         string promptFilePath = terminal->getCurrentDir() + "/prompt.md";
@@ -503,7 +504,7 @@ public:
                         {"type", "object"},
                         {"properties", {
                             {"command", {{"type", "string"}, {"description", "Comanda a executar (ex: 'ls -la', 'pwd', 'cat fitxer.txt')"}}},
-                            {"explanation", {{"type", "string"}, {"description", "Explicació de què fa la comanda i per què s'executa"}}}
+                            {"explanation", {{"type", "string"}, {"description", "Explicació de què fa la comanda i per què s'executa, defineix quina es la intenció"}}}
                         }},
                         {"required", {"command", "explanation"}}
                     }}
@@ -1102,6 +1103,12 @@ int main(int argc, char *argv[]) {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
+    ThemeManager themeManager;
+    ThemeManager::Theme currentTheme = themeManager.getBlueTheme(); // O qualsevol altre tema
+    themeManager.applyTheme(currentTheme);
+    ThemeManager::applyRoundedStyle(ImGui::GetStyle());
+
+
     ImFont* fontRegular = io.Fonts->AddFontDefault();
     
     // Font monospace per a codi
@@ -1194,7 +1201,15 @@ int main(int argc, char *argv[]) {
                 }
                 ImGui::EndMenu();
             }
-            
+            if (ImGui::BeginMenu("Theme")) {
+                static vector<ThemeManager::Theme> themes = themeManager.getPredefinedThemes();
+                for (const auto& theme : themes) {
+                    if (ImGui::MenuItem(theme.name.c_str())) {
+                        themeManager.applyTheme(theme);
+                    }
+                }
+                ImGui::EndMenu();
+            }
             // Status indicator
             ImGui::SameLine(ImGui::GetWindowWidth() - 120);
             if (appInitialized) {
@@ -1384,20 +1399,24 @@ int main(int argc, char *argv[]) {
             // Per als altres tipus de missatges, mostrar normalment
             switch (message.type) {
                 case ChatApplication::ChatMessage::USER:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 1.0f, 1.0f));
+                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 1.0f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.userMessageColor);
                     break;
                 case ChatApplication::ChatMessage::AI:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 0.3f, 1.0f));
+                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 0.3f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.aiMessageColor);
                     break;
                 case ChatApplication::ChatMessage::COMMAND_OUTPUT:
-                    // Aquest cas ja s'ha gestionat més amunt
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.commandOutputColor);
                     break;
                 case ChatApplication::ChatMessage::COMMAND_ERROR:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.commandErrorColor);
                     break;
                 case ChatApplication::ChatMessage::SYSTEM:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 0.5f, 1.0f));
+                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 0.5f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.systemMessageColor);
                     break;
             }
 
