@@ -779,197 +779,235 @@ private:
     vector<CommandOutputState> commandOutputStates;
     int nextCommandId;
 
-            
-    static void renderMarkdownText(const string& text, bool isStreaming = false) {
-        if (text.empty()) return;
+
+    
+    
+
+
+static void renderMarkdownText(const string& text, bool isStreaming = false) {
+    if (text.empty()) return;
+    
+    // Separar el text per línies
+    vector<string> lines;
+    stringstream ss(text);
+    string line;
+    
+    while (getline(ss, line)) {
+        lines.push_back(line);
+    }
+    
+    // Estat per controlar si estem dins d'un bloc de codi
+    bool inCodeBlock = false;
+    string codeBlockLanguage = "";
+    int codeLineNumber = 1; // Comptador de línies dins del bloc de codi
+    
+    // Processar cada línia
+    for (size_t i = 0; i < lines.size(); i++) {
+        string currentLine = lines[i];
         
-        // Separar el text per línies
-        vector<string> lines;
-        stringstream ss(text);
-        string line;
-        
-        while (getline(ss, line)) {
-            lines.push_back(line);
+        // Verificar si és l'inici o final d'un bloc de codi
+        if (currentLine.find("```") == 0) {
+            if (!inCodeBlock) {
+                // Inici d'un bloc de codi
+                inCodeBlock = true;
+                codeBlockLanguage = currentLine.substr(3); // Pot contenir el llenguatge
+                codeLineNumber = 1; // Reiniciar comptador
+                
+                // NO renderitzar la línia amb ``` - simplement saltar-la
+                // Continuar al següent element sense mostrar res
+                continue;
+            } else {
+                // Final d'un bloc de codi
+                inCodeBlock = false;
+                codeBlockLanguage = "";
+                codeLineNumber = 1; // Reiniciar comptador per al proper bloc
+                
+                // NO renderitzar la línia amb ``` - simplement saltar-la
+                // Continuar al següent element sense mostrar res
+                continue;
+            }
         }
         
-        // Estat per controlar si estem dins d'un bloc de codi
-        bool inCodeBlock = false;
-        string codeBlockLanguage = "";
-        
-        // Processar cada línia
-        for (size_t i = 0; i < lines.size(); i++) {
-            string currentLine = lines[i];
+        // Si estem dins d'un bloc de codi, mostrar la línia amb estil de codi i número de línia
+        if (inCodeBlock) {
+            // Crear un contenidor per a la línia de codi
+            ImGui::BeginGroup();
             
-            // Verificar si és l'inici o final d'un bloc de codi
-            if (currentLine.find("```") == 0) {
-                if (!inCodeBlock) {
-                    // Inici d'un bloc de codi
-                    inCodeBlock = true;
-                    codeBlockLanguage = currentLine.substr(3); // Pot contenir el llenguatge
-                    
-                    // Renderitzar la línia amb el bloc de codi (sense processar)
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Gris per a blocs de codi
-                    ImGui::TextWrapped("%s", currentLine.c_str());
-                    ImGui::PopStyleColor();
-                } else {
-                    // Final d'un bloc de codi
-                    inCodeBlock = false;
-                    codeBlockLanguage = "";
-                    
-                    // Renderitzar la línia amb el bloc de codi (sense processar)
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Gris per a blocs de codi
-                    ImGui::TextWrapped("%s", currentLine.c_str());
-                    ImGui::PopStyleColor();
-                }
-                
-                // Afegir un petit espai entre línies (excepte l'última)
-                if (i < lines.size() - 1) {
-                    ImGui::Spacing();
-                }
-                continue; // Saltar al processament de la següent línia
-            }
+            // Número de línia (púrpura)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.2f, 0.8f, 1.0f)); // Púrpura
+            ImGui::Text("%3d", codeLineNumber); // Format: 3 dígits amb espais a l'esquerra
+            ImGui::PopStyleColor();
             
-            // Si estem dins d'un bloc de codi, renderitzar literalment
-            if (inCodeBlock) {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Gris per a contingut de codi
-                ImGui::TextWrapped("%s", currentLine.c_str());
-                ImGui::PopStyleColor();
-                
-                // Afegir un petit espai entre línies (excepte l'última)
-                if (i < lines.size() - 1) {
-                    ImGui::Spacing();
-                }
-                continue; // Saltar al processament de la següent línia
-            }
+            // Separador entre número i codi
+            ImGui::SameLine(0, 10.0f); // 10px d'espai
             
-            // Si no estem en un bloc de codi, processar Markdown normalment
+            // Contingut del codi
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Text gris clar
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f)); // Fons negre
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 10.0f)); // Padding intern
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f); // Vores arrodonides
             
-            // Verificar si la línia està completament en negreta
-            bool isBoldLine = false;
-            string boldContent = "";
+            // Calcular l'amplada disponible per al codi (restant l'espai del número de línia)
+            float lineNumberWidth = ImGui::CalcTextSize("999").x + 10.0f; // Amplada per a 3 dígits + espai
+            float availableWidth = ImGui::GetContentRegionAvail().x - lineNumberWidth;
             
-            // Patró: **text** (sense res més a la línia)
-            if (currentLine.length() >= 4 && 
-                currentLine.find("**") == 0) {
-                size_t endBold = currentLine.find("**", 2);
-                if (endBold != string::npos && 
-                    endBold == currentLine.length() - 2) {
-                    isBoldLine = true;
-                    boldContent = currentLine.substr(2, endBold - 2);
-                }
-            }
+            // Renderitzar el text del codi
+            ImGui::TextWrapped("%s", currentLine.c_str());
             
-            // Verificar si és un títol (#, ##, ###, etc.)
-            bool isTitle = false;
-            int titleLevel = 0;
-            string titleContent = "";
+            // Restaurar estils
+            ImGui::PopStyleVar(2);
+            ImGui::PopStyleColor(2);
             
-            // Comprovar diferents nivells de títol
-            for (int level = 1; level <= 6; level++) {
-                string prefix = string(level, '#') + " ";
-                if (currentLine.length() >= prefix.length() && 
-                    currentLine.find(prefix) == 0) {
-                    isTitle = true;
-                    titleLevel = level;
-                    titleContent = currentLine.substr(prefix.length()); // Eliminar prefix
-                    break;
-                }
-            }
+            ImGui::EndGroup();
             
-            // Verificar si és un separador (---)
-            bool isSeparator = false;
-            if (currentLine.length() >= 3) {
-                // Eliminar espais al principi i final
-                string trimmedLine = currentLine;
-                size_t firstNonSpace = trimmedLine.find_first_not_of(" \t");
-                size_t lastNonSpace = trimmedLine.find_last_not_of(" \t");
-                
-                if (firstNonSpace != string::npos && lastNonSpace != string::npos) {
-                    trimmedLine = trimmedLine.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
-                    
-                    // Comprovar si és un separador (--- o ***)
-                    if (trimmedLine.length() >= 3 && 
-                        (trimmedLine.find("---") == 0 || trimmedLine.find("***") == 0)) {
-                        // Verificar que tots els caràcters siguin '-' o '*'
-                        bool allSame = true;
-                        char firstChar = trimmedLine[0];
-                        for (char c : trimmedLine) {
-                            if (c != firstChar) {
-                                allSame = false;
-                                break;
-                            }
-                        }
-                        if (allSame && trimmedLine.length() >= 3) {
-                            isSeparator = true;
-                        }
-                    }
-                }
-            }
+            // Incrementar el número de línia per a la següent línia de codi
+            codeLineNumber++;
             
-            // Netejar negretes del contingut del títol
-            if (isTitle) {
-                // Eliminar ** del principi i final si existeixen
-                if (titleContent.length() >= 4 && 
-                    titleContent.find("**") == 0) {
-                    size_t endBold = titleContent.find("**", 2);
-                    if (endBold != string::npos && 
-                        endBold == titleContent.length() - 2) {
-                        titleContent = titleContent.substr(2, endBold - 2);
-                    }
-                }
-            }
-            
-            if (isBoldLine) {
-                // Renderitzar en negreta - incrementar la mida de la font per simular negreta
-                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
-                
-                // Establir nova escala per simular negreta
-                ImGui::SetWindowFontScale(1.1f); // 10% més gran
-                
-                // Utilitzar TextColored en lloc de PushStyleColor/PopStyleColor
-                // Així no interfereix amb el color del tipus de missatge
-                ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", boldContent.c_str());
-                
-                // Restaurar l'escala per defecte
-                ImGui::SetWindowFontScale(1.0f);
-                
-                ImGui::PopFont();
-            } else if (isTitle) {
-                // Renderitzar títol amb mida proporcional al nivell
-                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
-                
-                // Configurar espai segons el nivell
-                float verticalPadding = 10.0f - (titleLevel * 1.0f); // Més padding per títols superiors
-                if (verticalPadding < 4.0f) verticalPadding = 4.0f;
-                
-                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, verticalPadding));
-                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 4));
-                
-                // Escalar la font segons el nivell del títol
-                // # = 1.4, ## = 1.3, ### = 1.2, #### = 1.1, etc.
-                float fontSizeScale = 1.5f - (titleLevel * 0.1f);
-                if (fontSizeScale < 1.0f) fontSizeScale = 1.0f;
-                
-                ImGui::SetWindowFontScale(fontSizeScale);
-                ImGui::TextWrapped("%s", titleContent.c_str());
-                ImGui::SetWindowFontScale(1.0f);
-                
-                ImGui::PopStyleVar(2);
-                ImGui::PopFont();
-            } else if (isSeparator) {
-                // Renderitzar separador
-                ImGui::Separator();
-            } else {
-                // Renderitzar normalment
-                ImGui::TextWrapped("%s", currentLine.c_str());
-            }
-            
-            // Afegir un petit espai entre línies (excepte l'última)
+            // Afegir un petit espai després de la línia de codi (només si no és l'última línia)
             if (i < lines.size() - 1) {
                 ImGui::Spacing();
             }
+            
+            continue; // Saltar al processament de la següent línia
+        }
+        
+        // Si no estem en un bloc de codi, processar Markdown normalment
+        
+        // Verificar si la línia està completament en negreta
+        bool isBoldLine = false;
+        string boldContent = "";
+        
+        // Patró: **text** (sense res més a la línia)
+        if (currentLine.length() >= 4 && 
+            currentLine.find("**") == 0) {
+            size_t endBold = currentLine.find("**", 2);
+            if (endBold != string::npos && 
+                endBold == currentLine.length() - 2) {
+                isBoldLine = true;
+                boldContent = currentLine.substr(2, endBold - 2);
+            }
+        }
+        
+        // Verificar si és un títol (#, ##, ###, etc.)
+        bool isTitle = false;
+        int titleLevel = 0;
+        string titleContent = "";
+        
+        // Comprovar diferents nivells de títol
+        for (int level = 1; level <= 6; level++) {
+            string prefix = string(level, '#') + " ";
+            if (currentLine.length() >= prefix.length() && 
+                currentLine.find(prefix) == 0) {
+                isTitle = true;
+                titleLevel = level;
+                titleContent = currentLine.substr(prefix.length()); // Eliminar prefix
+                break;
+            }
+        }
+        
+        // Verificar si és un separador (---)
+        bool isSeparator = false;
+        if (currentLine.length() >= 3) {
+            // Eliminar espais al principi i final
+            string trimmedLine = currentLine;
+            size_t firstNonSpace = trimmedLine.find_first_not_of(" \t");
+            size_t lastNonSpace = trimmedLine.find_last_not_of(" \t");
+            
+            if (firstNonSpace != string::npos && lastNonSpace != string::npos) {
+                trimmedLine = trimmedLine.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
+                
+                // Comprovar si és un separador (--- o ***)
+                if (trimmedLine.length() >= 3 && 
+                    (trimmedLine.find("---") == 0 || trimmedLine.find("***") == 0)) {
+                    // Verificar que tots els caràcters siguin '-' o '*'
+                    bool allSame = true;
+                    char firstChar = trimmedLine[0];
+                    for (char c : trimmedLine) {
+                        if (c != firstChar) {
+                            allSame = false;
+                            break;
+                        }
+                    }
+                    if (allSame && trimmedLine.length() >= 3) {
+                        isSeparator = true;
+                    }
+                }
+            }
+        }
+        
+        // Netejar negretes del contingut del títol
+        if (isTitle) {
+            // Eliminar ** del principi i final si existeixen
+                if (titleContent.length() >= 4 && 
+                    titleContent.find("**") == 0) {
+                size_t endBold = titleContent.find("**", 2);
+                if (endBold != string::npos && 
+                    endBold == titleContent.length() - 2) {
+                    titleContent = titleContent.substr(2, endBold - 2);
+                }
+            }
+        }
+        
+        if (isBoldLine) {
+            // Renderitzar en negreta - incrementar la mida de la font per simular negreta
+            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
+            
+            // Establir nova escala per simular negreta
+            ImGui::SetWindowFontScale(1.1f); // 10% més gran
+            
+            // Utilitzar TextColored en lloc de PushStyleColor/PopStyleColor
+            // Així no interfereix amb el color del tipus de missatge
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", boldContent.c_str());
+            
+            // Restaurar l'escala per defecte
+            ImGui::SetWindowFontScale(1.0f);
+            
+            ImGui::PopFont();
+        } else if (isTitle) {
+            // Renderitzar títol amb mida proporcional al nivell
+            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
+            
+            // Configurar espai segons el nivell
+            float verticalPadding = 10.0f - (titleLevel * 1.0f); // Més padding per títols superiors
+            if (verticalPadding < 4.0f) verticalPadding = 4.0f;
+            
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, verticalPadding));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 4));
+            
+            // Escalar la font segons el nivell del títol
+            // # = 1.4, ## = 1.3, ### = 1.2, #### = 1.1, etc.
+            float fontSizeScale = 1.5f - (titleLevel * 0.1f);
+            if (fontSizeScale < 1.0f) fontSizeScale = 1.0f;
+            
+            ImGui::SetWindowFontScale(fontSizeScale);
+            ImGui::TextWrapped("%s", titleContent.c_str());
+            ImGui::SetWindowFontScale(1.0f);
+            
+            ImGui::PopStyleVar(2);
+            ImGui::PopFont();
+        } else if (isSeparator) {
+            // Renderitzar separador
+            ImGui::Separator();
+        } else {
+            // Renderitzar normalment
+            ImGui::TextWrapped("%s", currentLine.c_str());
+        }
+        
+        // Afegir un petit espai entre línies (excepte l'última)
+        if (i < lines.size() - 1) {
+            ImGui::Spacing();
         }
     }
+}
+
+
+
+
+
+
+
+
+
 
 
 public:
