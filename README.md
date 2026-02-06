@@ -81,11 +81,8 @@ export DEEPSEEK_API_KEY="your_api_key_here"
 ### Compilation
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/laIAUI.git
+git clone https://github.com/lunokjod/laIAUI.git
 cd laIAUI
-
-# Initialize submodules
-git submodule update --init --recursive
 
 # Create build directory
 mkdir build && cd build
