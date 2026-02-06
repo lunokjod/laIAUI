@@ -29,14 +29,189 @@ using namespace std;
 atomic<bool> g_interrupted(false);
 atomic<bool> g_inChatLoop(false);
 
-// Signal handler function
-void signalHandler(int signal) {
-    if (signal == SIGINT) {
-        if (g_inChatLoop.load()) {
-            g_interrupted.store(true);
+// Token counter class for DeepSeek (compatible with GPT-4 tokenizer)
+class TokenCounter {
+private:
+    // BPE ranks from GPT-4 tokenizer (simplified version)
+    static unordered_map<string, int> getBpeRanks() {
+        // Aquesta és una versió simplificada. En una implementació real,
+        // caldria carregar el vocab.json i merges.txt del tokenizer de DeepSeek
+        // Per ara, fem una aproximació basada en caràcters i paraules comunes
+        
+        unordered_map<string, int> ranks;
+        int rank = 0;
+        
+        // Caràcters individuals (ASCII)
+        for (int i = 0; i < 256; i++) {
+            string ch(1, static_cast<char>(i));
+            ranks[ch] = rank++;
         }
+        
+        // Patrons comuns en anglès/català
+        vector<string> commonPatterns = {
+            " the", " a", " an", " of", " to", " in", " for", " on", " with",
+            " is", " are", " was", " were", " be", " been", " have", " has",
+            " had", " do", " does", " did", " not", " and", " or", " but",
+            " if", " then", " else", " when", " where", " why", " how",
+            " all", " any", " both", " each", " few", " more", " most",
+            " other", " some", " such", " no", " nor", " not", " only",
+            " own", " same", " so", " than", " too", " very", " can",
+            " will", " just", " don", " should", " now", " el", " la",
+            " els", " les", " un", " una", " uns", " unes", " de", " i",
+            " que", " en", " és", " no", " per", " amb", " com", " del",
+            " al", " als", " de la", " de les", " a la", " a les"
+        };
+        
+        for (const auto& pattern : commonPatterns) {
+            ranks[pattern] = rank++;
+        }
+        
+        return ranks;
     }
-}
+    
+    static vector<pair<string, int>> getByteEncoder() {
+        vector<pair<string, int>> encoder;
+        
+        // Caràcters ASCII
+        for (int i = 0; i < 256; i++) {
+            encoder.push_back({string(1, static_cast<char>(i)), i});
+        }
+        
+        // Caràcters especials i Unicode (simplificat)
+        // En una implementació real, caldria manejar tot Unicode
+        
+        return encoder;
+    }
+    
+public:
+    // Funció per comptar tokens (aproximació per a DeepSeek/GPT-4)
+    static int countTokens(const string& text) {
+        if (text.empty()) return 0;
+        
+        // Aproximació basada en:
+        // 1 token ≈ 4 caràcters en anglès
+        // 1 token ≈ 3-4 caràcters en català/espanyol
+        // Per a codi, 1 token ≈ 2-3 caràcters
+        
+        // Comptar paraules, caràcters i espais per fer una estimació millor
+        int charCount = text.length();
+        int wordCount = 0;
+        int spaceCount = 0;
+        int punctuationCount = 0;
+        int digitCount = 0;
+        
+        bool inWord = false;
+        for (char c : text) {
+            if (isspace(c)) {
+                spaceCount++;
+                if (inWord) {
+                    wordCount++;
+                    inWord = false;
+                }
+            } else if (ispunct(c)) {
+                punctuationCount++;
+                if (inWord) {
+                    wordCount++;
+                    inWord = false;
+                }
+            } else if (isdigit(c)) {
+                digitCount++;
+                inWord = true;
+            } else {
+                inWord = true;
+            }
+        }
+        
+        // Comptar la última paraula si hi ha
+        if (inWord) {
+            wordCount++;
+        }
+        
+        // Estimació més precisa basada en l'estadística de DeepSeek:
+        // - Paraules comunes: 1 token per paraula
+        // - Paraules llargues: múltiples tokens
+        // - Punts i espais: generalment 0-1 tokens
+        // - Números: 1 token per grup de 2-3 dígits
+        
+        // Estimació conservadora
+        double estimatedTokens = 0;
+        
+        // Paraules: entre 0.8 i 1.2 tokens per paraula
+        estimatedTokens += wordCount * 1.0;
+        
+        // Punts i espais: afegir una mica
+        estimatedTokens += (punctuationCount + spaceCount) * 0.3;
+        
+        // Números: menys tokens que lletres
+        estimatedTokens += digitCount * 0.5;
+        
+        // Caràcters restants
+        int otherChars = charCount - wordCount - punctuationCount - spaceCount - digitCount;
+        estimatedTokens += otherChars * 0.25;
+        
+        // Ajustar per llenguatge: català/espanyol tendeix a tenir més tokens que anglès
+        // per la mateixa quantitat de caràcters
+        double languageFactor = 1.1; // 10% més per català
+        
+        // Detectar si hi ha codi (per les cometes inverses)
+        bool hasCode = text.find("```") != string::npos || 
+                      text.find("#include") != string::npos ||
+                      text.find("def ") != string::npos ||
+                      text.find("function") != string::npos ||
+                      text.find("class ") != string::npos;
+        
+        if (hasCode) {
+            // El codi tendeix a tenir més tokens per caràcter
+            languageFactor = 1.3;
+        }
+        
+        estimatedTokens *= languageFactor;
+        
+        // Assegurar-nos d'un mínim
+        if (estimatedTokens < 1 && charCount > 0) {
+            estimatedTokens = 1;
+        }
+        
+        return static_cast<int>(estimatedTokens + 0.5); // Arrodonir
+    }
+    
+    // Funció més precisa per a missatges del chat (inclou rols i format)
+    static int countChatMessageTokens(const string& role, const string& content) {
+        // Els missatges del chat inclouen metadades addicionals
+        int totalTokens = 0;
+        
+        // Tokens per al format del missatge (aproximat)
+        // "role": "user", "content": "..." etc.
+        totalTokens += 10; // Tokens per a l'estructura JSON
+        
+        // Tokens pel rol
+        totalTokens += countTokens(role) + 2; // +2 per les cometes
+        
+        // Tokens pel contingut
+        totalTokens += countTokens(content);
+        
+        return totalTokens;
+    }
+    
+    // Funció per estimar tokens en una conversa completa
+    static int estimateConversationTokens(const vector<pair<string, string>>& messages) {
+        int totalTokens = 0;
+        
+        // Tokens per a l'estructura del sistema (aproximat)
+        totalTokens += 50; // Prompt del sistema, etc.
+        
+        // Afegir tokens per cada missatge
+        for (const auto& [role, content] : messages) {
+            totalTokens += countChatMessageTokens(role, content);
+        }
+        
+        // Afegir tokens per a les respostes possibles
+        totalTokens += 100; // Reserva per a la resposta
+        
+        return totalTokens;
+    }
+};
+
 
 // Terminal emulator class (simplified for GUI)
 class TerminalEmulator {
@@ -186,7 +361,9 @@ private:
         bool inToolCall;
         function<void(const string&)>* onChunk; // Afegir punter al callback
     };
-
+    int countTextTokens(const string& text) const {
+        return TokenCounter::countTokens(text);
+    }
     // Callback per streaming
     static size_t StreamingWriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
         size_t totalSize = size * nmemb;
@@ -756,6 +933,39 @@ public:
 // Main application class
 class ChatApplication {
 private:
+    // Comptador de tokens per a la consulta actual
+    mutable int currentQueryTokenCount;
+    mutable mutex tokenCountMutex;
+    mutable int sessionTotalTokens;
+    mutable int sessionTotalBytes;
+
+public:
+    // Obtenir el comptador de tokens de la consulta actual
+    int getCurrentQueryTokenCount() const {
+        lock_guard<mutex> lock(tokenCountMutex);
+        return currentQueryTokenCount;
+    }
+    
+    // Obtenir estadístiques de sessió
+    pair<int, int> getSessionStats() const {
+        lock_guard<mutex> lock(tokenCountMutex);
+        return {sessionTotalTokens, sessionTotalBytes};
+    }
+    
+    // Reiniciar el comptador de tokens
+    void resetTokenCount() {
+        lock_guard<mutex> lock(tokenCountMutex);
+        currentQueryTokenCount = 0;
+    }
+    
+    // Afegir tokens i bytes a la sessió
+    void addToSessionStats(int tokens, int bytes) {
+        lock_guard<mutex> lock(tokenCountMutex);
+        sessionTotalTokens += tokens;
+        sessionTotalBytes += bytes;
+    }
+    
+private:
     unique_ptr<AsyncTaskManager> asyncTaskManager;
     char textBuffer[16384];
     bool isInitialized;
@@ -766,7 +976,7 @@ private:
     string streamingResponse;
     bool isStreaming;
     
-    // Afegir: Mutex per protegir l'accés a les llistes de missatges
+    // Mutex per protegir l'accés a les llistes de missatges
     mutable mutex messagesMutex;
     mutable mutex pendingResultsMutex;
     vector<json> pendingCommandResults; // Resultats pendents de mostrar
@@ -779,7 +989,7 @@ private:
     vector<CommandOutputState> commandOutputStates;
     int nextCommandId;
 
-
+    
     
     
 
@@ -1030,7 +1240,9 @@ private:
 public:
     ChatApplication() : isInitialized(false), isProcessingTask(false), 
                        requestFocusAfterResponse(false), toolsEnabled(false),
-                       isStreaming(false), nextCommandId(0) {
+                       isStreaming(false), nextCommandId(0),
+                       currentQueryTokenCount(0),
+                       sessionTotalTokens(0), sessionTotalBytes(0) {  // NOU: Inicialitzar comptadors de sessió
         memset(textBuffer, 0, sizeof(textBuffer));
     }
     
@@ -1135,6 +1347,13 @@ public:
     void sendMessage(const string& message) {
         if (!isInitialized || message.empty() || isProcessingTask) return;
         
+        lock_guard<mutex> lock(tokenCountMutex);
+        currentQueryTokenCount = TokenCounter::countTokens(message);
+
+        // Afegir tokens i bytes del missatge d'usuari a la sessió
+        sessionTotalTokens += TokenCounter::countTokens(message);
+        sessionTotalBytes += message.length();
+
         addMessage("Tu: " + message, ChatMessage::USER);
         
         // Crear un missatge d'IA buit que anirem actualitzant
@@ -1148,15 +1367,26 @@ public:
         
         // Contador per saber quants chunks hem rebut
         int chunkCounter = 0;
+        // Utilitzar shared_ptr per compartir els comptadors entre lambdas
+        auto totalResponseTokens = make_shared<int>(0);
+        auto totalResponseBytes = make_shared<int>(0);
         
         // Utilitzar streaming amb tools
         asyncTaskManager->submitStreamingTask(
             message,
-            [this, chunkCounter](const string& chunk) mutable {
+            [this, chunkCounter, totalResponseTokens, totalResponseBytes](const string& chunk) mutable {
                 // Aquest callback s'executa quan arriba un chunk
                 chunkCounter++;
                 cout << "[CHAT] Chunk " << chunkCounter << " obtained: '" << chunk << "'" << endl;
-                
+
+                int chunkTokens = TokenCounter::countTokens(chunk);
+                *totalResponseTokens += chunkTokens;
+                *totalResponseBytes += chunk.length();
+                {
+                    lock_guard<mutex> lock(tokenCountMutex);
+                    currentQueryTokenCount = TokenCounter::countTokens(currentProcessingMessage) + *totalResponseTokens;
+                }
+
                 // Afegir el chunk a la resposta acumulada
                 streamingResponse += chunk;
                 
@@ -1178,11 +1408,18 @@ public:
                 // Processar qualsevol resultat de comanda pendent
                 processPendingCommandResults();
             },
-            [this]() {
+            [this, totalResponseTokens, totalResponseBytes]() {
                 // Aquest callback s'executa quan acaba el stream
                 isStreaming = false;
                 isProcessingTask = false;
-                
+                {
+                    lock_guard<mutex> lock(tokenCountMutex);
+                    currentQueryTokenCount = TokenCounter::countTokens(currentProcessingMessage) + *totalResponseTokens;
+                    // Afegir tokens i bytes de la resposta a la sessió
+                    sessionTotalTokens += *totalResponseTokens;
+                    sessionTotalBytes += *totalResponseBytes;
+                }
+
                 // Si la resposta està buida, afegir un missatge indicant que s'ha executat una comanda
                 if (streamingResponse.empty()) {
                     lock_guard<mutex> lock(messagesMutex);
@@ -1223,6 +1460,11 @@ public:
         {
             lock_guard<mutex> lock(pendingResultsMutex);
             pendingCommandResults.clear();
+        }
+        // Netejar el comptador de tokens
+        {
+            lock_guard<mutex> lock(tokenCountMutex);
+            currentQueryTokenCount = 0;
         }
         addMessage("Type something to start...", ChatMessage::SYSTEM);
         
@@ -1384,8 +1626,6 @@ int main(int argc, char *argv[]) {
     static float chatInputHeight = 40.0f;
     static bool setFocusToInput = true;
     
-    // Setup signal handler for Ctrl+C
-    signal(SIGINT, signalHandler);
     
     // Main loop
     while (!glfwWindowShouldClose(window)) {
@@ -1421,7 +1661,8 @@ int main(int argc, char *argv[]) {
             }
 
             // Status indicator
-            ImGui::SameLine(ImGui::GetWindowWidth() - 120);
+            ImGui::SameLine(100);
+            //ImGui::SameLine(ImGui::GetWindowWidth() - 120);
             ImGui::Bullet();
             if (appInitialized) {
                 if (chatApp.getIsProcessingTask()) {
@@ -1433,9 +1674,17 @@ int main(int argc, char *argv[]) {
                     float blinkCycle = fmod(blinkTimer, 1.0f);
                     float alpha = (blinkCycle < 0.5f) ? 1.0f : 0.3f;
                     
-                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, alpha), "Thinking...");
+                    // Obtenir el comptador de tokens actual
+                    int tokenCount = chatApp.getCurrentQueryTokenCount();
+                    
+                    // Mostrar "Thinking..." amb el comptador de tokens
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, alpha), "Thinking (%d)...", tokenCount);
                 } else {
-                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Online");
+                    // Obtenir estadístiques de sessió
+                    auto [sessionTokens, sessionBytes] = chatApp.getSessionStats();
+                    // Mostrar "Online" amb estadístiques de sessió
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Online (%d tokens, %d bytes)", 
+                                      sessionTokens, sessionBytes);
                 }
             } else {
                 ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Offline");
