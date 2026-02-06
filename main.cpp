@@ -779,6 +779,7 @@ private:
     vector<CommandOutputState> commandOutputStates;
     int nextCommandId;
 
+            
     static void renderMarkdownText(const string& text, bool isStreaming = false) {
         if (text.empty()) return;
         
@@ -791,9 +792,57 @@ private:
             lines.push_back(line);
         }
         
+        // Estat per controlar si estem dins d'un bloc de codi
+        bool inCodeBlock = false;
+        string codeBlockLanguage = "";
+        
         // Processar cada línia
         for (size_t i = 0; i < lines.size(); i++) {
             string currentLine = lines[i];
+            
+            // Verificar si és l'inici o final d'un bloc de codi
+            if (currentLine.find("```") == 0) {
+                if (!inCodeBlock) {
+                    // Inici d'un bloc de codi
+                    inCodeBlock = true;
+                    codeBlockLanguage = currentLine.substr(3); // Pot contenir el llenguatge
+                    
+                    // Renderitzar la línia amb el bloc de codi (sense processar)
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Gris per a blocs de codi
+                    ImGui::TextWrapped("%s", currentLine.c_str());
+                    ImGui::PopStyleColor();
+                } else {
+                    // Final d'un bloc de codi
+                    inCodeBlock = false;
+                    codeBlockLanguage = "";
+                    
+                    // Renderitzar la línia amb el bloc de codi (sense processar)
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Gris per a blocs de codi
+                    ImGui::TextWrapped("%s", currentLine.c_str());
+                    ImGui::PopStyleColor();
+                }
+                
+                // Afegir un petit espai entre línies (excepte l'última)
+                if (i < lines.size() - 1) {
+                    ImGui::Spacing();
+                }
+                continue; // Saltar al processament de la següent línia
+            }
+            
+            // Si estem dins d'un bloc de codi, renderitzar literalment
+            if (inCodeBlock) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Gris per a contingut de codi
+                ImGui::TextWrapped("%s", currentLine.c_str());
+                ImGui::PopStyleColor();
+                
+                // Afegir un petit espai entre línies (excepte l'última)
+                if (i < lines.size() - 1) {
+                    ImGui::Spacing();
+                }
+                continue; // Saltar al processament de la següent línia
+            }
+            
+            // Si no estem en un bloc de codi, processar Markdown normalment
             
             // Verificar si la línia està completament en negreta
             bool isBoldLine = false;
@@ -871,16 +920,23 @@ private:
             }
             
             if (isBoldLine) {
-                // Renderitzar en negreta (text normal en blanc)
+                // Renderitzar en negreta - incrementar la mida de la font per simular negreta
                 ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // Blanc
-                ImGui::TextWrapped("%s", boldContent.c_str());
-                ImGui::PopStyleColor();
+                
+                // Establir nova escala per simular negreta
+                ImGui::SetWindowFontScale(1.1f); // 10% més gran
+                
+                // Utilitzar TextColored en lloc de PushStyleColor/PopStyleColor
+                // Així no interfereix amb el color del tipus de missatge
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", boldContent.c_str());
+                
+                // Restaurar l'escala per defecte
+                ImGui::SetWindowFontScale(1.0f);
+                
                 ImGui::PopFont();
             } else if (isTitle) {
                 // Renderitzar títol amb mida proporcional al nivell
                 ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // Blanc
                 
                 // Configurar espai segons el nivell
                 float verticalPadding = 10.0f - (titleLevel * 1.0f); // Més padding per títols superiors
@@ -899,7 +955,6 @@ private:
                 ImGui::SetWindowFontScale(1.0f);
                 
                 ImGui::PopStyleVar(2);
-                ImGui::PopStyleColor();
                 ImGui::PopFont();
             } else if (isSeparator) {
                 // Renderitzar separador
@@ -915,6 +970,7 @@ private:
             }
         }
     }
+
 
 public:
     // Estructura per emmagatzemar missatges amb tipus
