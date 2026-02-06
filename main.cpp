@@ -1031,9 +1031,6 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
                 inCodeBlock = false;
                 codeBlockLanguage = "";
                 codeLineNumber = 1; // Reiniciar comptador per al proper bloc
-                
-                // NO renderitzar la línia amb ``` - simplement saltar-la
-                // Continuar al següent element sense mostrar res
                 continue;
             }
         }
@@ -1043,9 +1040,11 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             // Crear un contenidor per a la línia de codi
             ImGui::BeginGroup();
             
-            // Número de línia (púrpura)
+            // Número de línia (púrpura) - MÉS PETIT
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.2f, 0.8f, 1.0f)); // Púrpura
+            ImGui::SetWindowFontScale(0.8f); // REDUIR LA MIDA DE LA LLETRA A 80%
             ImGui::Text("%3d", codeLineNumber); // Format: 3 dígits amb espais a l'esquerra
+            ImGui::SetWindowFontScale(1.0f); // RESTAURAR MIDA NORMAL
             ImGui::PopStyleColor();
             
             // Separador entre número i codi
@@ -1058,7 +1057,7 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f); // Vores arrodonides
             
             // Calcular l'amplada disponible per al codi (restant l'espai del número de línia)
-            float lineNumberWidth = ImGui::CalcTextSize("999").x + 10.0f; // Amplada per a 3 dígits + espai
+            float lineNumberWidth = ImGui::CalcTextSize("999").x * 0.8f + 10.0f; // Amplada per a 3 dígits (80%) + espai
             float availableWidth = ImGui::GetContentRegionAvail().x - lineNumberWidth;
             
             // Renderitzar el text del codi
