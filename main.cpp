@@ -1252,6 +1252,7 @@ int main(int argc, char *argv[]) {
             }
             // Status indicator
             ImGui::SameLine(ImGui::GetWindowWidth() - 120);
+            ImGui::Bullet();
             if (appInitialized) {
                 if (chatApp.getIsProcessingTask()) {
                     // Crear efecto de parpadeo basado en el tiempo
