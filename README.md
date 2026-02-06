@@ -79,9 +79,12 @@ export DEEPSEEK_API_KEY="your_api_key_here"
 ## Compilation and Execution
 
 ### Compilation
+
+With glw:
+
 ```bash
 # Clone the repository
-git clone https://github.com/lunokjod/laIAUI.git
+git clone https://github.com/your-username/laIAUI.git
 cd laIAUI
 
 # Create build directory
@@ -89,6 +92,23 @@ mkdir build && cd build
 
 # Configure with CMake
 cmake ..
+
+# Compile
+make
+```
+
+With SDL:
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/laIAUI.git
+cd laIAUI
+
+# Create build directory
+mkdir build && cd build
+
+# Configure with CMake
+cmake .. -B build -DUSE_SDL=ON && cmake ..
 
 # Compile
 make
@@ -124,15 +144,6 @@ The AI can execute terminal commands automatically when deemed necessary. Result
 - **Right-click on chat area**: Copy entire chat
 - **"Tools" checkbox**: Enable/disable command execution
 
-## Project Structure
-```
-laIAUI/
-├── main.cpp              # Main source code
-├── CMakeLists.txt        # CMake configuration
-├── README.md            # This file
-├── imgui/               # ImGui submodule
-└── build/               # Build directory
-```
 
 ## GUI Configuration
 
