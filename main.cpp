@@ -21,7 +21,6 @@
 #include <future>
 #include <fstream>
 #include <sstream>
-#include "themes.hpp"
 
 using json = nlohmann::json;
 using namespace std;
@@ -1064,10 +1063,6 @@ void toggleCommandExpanded(const string& commandId) {
 };
 
 
-/*
-static float uiScale = 1.0f;
-static bool scaleChanged = false;
-*/
 int main(int argc, char *argv[]) {
     // Initialize GLFW
     if (!glfwInit()) {
@@ -1106,38 +1101,9 @@ int main(int argc, char *argv[]) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    /*
-    // set window scale
-    if (scaleChanged) {
-        cout << "SCALE CHANGED " << uiScale << endl;
-        // Recrear fonts amb la nova escala
-        io.Fonts->Clear();
-        
-        ImFont* fontRegular = io.Fonts->AddFontDefault();
-        fontRegular->Scale = uiScale;
-        
-        // Recrear les altres fonts també...
-        ImFont* fontMono = io.Fonts->AddFontFromFileTTF(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-            14.0f * uiScale  // Escala la mida de la font
-        );
-        
-        // Reconstruir l'atles de textures
-        io.Fonts->Build();
-        
-        scaleChanged = false;
-        // Aplica l'escala a tota la UI:
-        ImGui::SetWindowFontScale(uiScale);
-    }*/
 
 
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    ThemeManager themeManager;
-    ThemeManager::Theme currentTheme = themeManager.getBlueTheme(); // O qualsevol altre tema
-    themeManager.applyTheme(currentTheme);
-    ThemeManager::applyRoundedStyle(ImGui::GetStyle());
-
 
     ImFont* fontRegular = io.Fonts->AddFontDefault();
     
@@ -1228,23 +1194,7 @@ int main(int argc, char *argv[]) {
                 }
                 ImGui::EndMenu();
             }
-            /*
-            if (ImGui::BeginMenu("View")) {
-                if (ImGui::MenuItem("Small (80%)")) { uiScale = 0.8f; scaleChanged = true; }
-                if (ImGui::MenuItem("Normal (100%)")) { uiScale = 1.0f; scaleChanged = true; }
-                if (ImGui::MenuItem("Large (120%)")) { uiScale = 1.2f; scaleChanged = true; }
-                if (ImGui::MenuItem("Extra Large (150%)")) { uiScale = 1.5f; scaleChanged = true; }
-                ImGui::EndMenu();
-            }*/
-            if (ImGui::BeginMenu("Theme")) {
-                static vector<ThemeManager::Theme> themes = themeManager.getPredefinedThemes();
-                for (const auto& theme : themes) {
-                    if (ImGui::MenuItem(theme.name.c_str())) {
-                        themeManager.applyTheme(theme);
-                    }
-                }
-                ImGui::EndMenu();
-            }
+
             // Status indicator
             ImGui::SameLine(ImGui::GetWindowWidth() - 120);
             ImGui::Bullet();
@@ -1442,24 +1392,19 @@ int main(int argc, char *argv[]) {
             // Per als altres tipus de missatges, mostrar normalment
             switch (message.type) {
                 case ChatApplication::ChatMessage::USER:
-                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 1.0f, 1.0f));
-                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.userMessageColor);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 1.0f, 1.0f));  // Blau clar
                     break;
                 case ChatApplication::ChatMessage::AI:
-                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 0.3f, 1.0f));
-                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.aiMessageColor);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 0.3f, 1.0f));  // Verd groguenc
                     break;
                 case ChatApplication::ChatMessage::COMMAND_OUTPUT:
-                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.commandOutputColor);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));  // Gris
                     break;
                 case ChatApplication::ChatMessage::COMMAND_ERROR:
-                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
-                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.commandErrorColor);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));  // Vermell
                     break;
                 case ChatApplication::ChatMessage::SYSTEM:
-                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 0.5f, 1.0f));
-                    ImGui::PushStyleColor(ImGuiCol_Text, currentTheme.systemMessageColor);
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 0.5f, 1.0f));  // Verd clar
                     break;
             }
 
