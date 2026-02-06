@@ -1063,7 +1063,13 @@ void toggleCommandExpanded(const string& commandId) {
     }
 };
 
+
+/*
+static float uiScale = 1.0f;
+static bool scaleChanged = false;
+*/
 int main(int argc, char *argv[]) {
+
     // Initialize GLFW
     if (!glfwInit()) {
         return 1;
@@ -1072,6 +1078,7 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 
     // Create window
     float mainScale = 1.0f;
@@ -1101,6 +1108,31 @@ int main(int argc, char *argv[]) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    /*
+    // set window scale
+    if (scaleChanged) {
+        cout << "SCALE CHANGED " << uiScale << endl;
+        // Recrear fonts amb la nova escala
+        io.Fonts->Clear();
+        
+        ImFont* fontRegular = io.Fonts->AddFontDefault();
+        fontRegular->Scale = uiScale;
+        
+        // Recrear les altres fonts també...
+        ImFont* fontMono = io.Fonts->AddFontFromFileTTF(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+            14.0f * uiScale  // Escala la mida de la font
+        );
+        
+        // Reconstruir l'atles de textures
+        io.Fonts->Build();
+        
+        scaleChanged = false;
+        // Aplica l'escala a tota la UI:
+        ImGui::SetWindowFontScale(uiScale);
+    }*/
+
+
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     ThemeManager themeManager;
@@ -1201,6 +1233,14 @@ int main(int argc, char *argv[]) {
                 }
                 ImGui::EndMenu();
             }
+            /*
+            if (ImGui::BeginMenu("View")) {
+                if (ImGui::MenuItem("Small (80%)")) { uiScale = 0.8f; scaleChanged = true; }
+                if (ImGui::MenuItem("Normal (100%)")) { uiScale = 1.0f; scaleChanged = true; }
+                if (ImGui::MenuItem("Large (120%)")) { uiScale = 1.2f; scaleChanged = true; }
+                if (ImGui::MenuItem("Extra Large (150%)")) { uiScale = 1.5f; scaleChanged = true; }
+                ImGui::EndMenu();
+            }*/
             if (ImGui::BeginMenu("Theme")) {
                 static vector<ThemeManager::Theme> themes = themeManager.getPredefinedThemes();
                 for (const auto& theme : themes) {
@@ -1447,7 +1487,7 @@ int main(int argc, char *argv[]) {
         ImGui::EndChild();
         
         // Separator
-        ImGui::Dummy(ImVec2(0.0f, 10.0f));
+        ImGui::Dummy(ImVec2(0.0f, 5.0f));
         ImGui::Separator();
         ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
