@@ -1245,14 +1245,21 @@ int main(int argc, char *argv[]) {
         float separatorHeight = ImGui::GetFrameHeight() * 0.5f;
         float checkboxHeight = ImGui::GetFrameHeight();
         float padding = ImGui::GetStyle().WindowPadding.y * 2;
-        
-        float availableHeight = windowSize.y - menuBarHeight - separatorHeight - chatInputHeight - separatorHeight - checkboxHeight - padding;
+        float extraSpacing = 20.0f;
+
+        float availableHeight = windowSize.y 
+        - menuBarHeight 
+        - separatorHeight 
+        - chatInputHeight 
+        - separatorHeight 
+        - checkboxHeight 
+        - padding
+        - extraSpacing;
         
         // Assegurar-nos que l'alçada no sigui negativa
         if (availableHeight < 50.0f) {
             availableHeight = 50.0f;
         }
-        
         // Chat area
         ImGui::BeginChild("ChatArea", ImVec2(0, availableHeight), false, ImGuiWindowFlags_None);
         
@@ -1440,8 +1447,10 @@ int main(int argc, char *argv[]) {
         ImGui::EndChild();
         
         // Separator
-        //ImGui::Separator();
-        
+        ImGui::Dummy(ImVec2(0.0f, 10.0f));
+        ImGui::Separator();
+        ImGui::Dummy(ImVec2(0.0f, 5.0f));
+
         // Input area
         float textInputWidth = windowSize.x - ImGui::GetStyle().WindowPadding.x * 2 - 80.0f;
         
