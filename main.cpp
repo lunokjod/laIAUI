@@ -1083,6 +1083,31 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
         
         // Si no estem en un bloc de codi, processar Markdown normalment
         
+        // Verificar si és una llista amb asterisc (*)
+        bool isListItem = false;
+        string listItemContent = "";
+        
+        // Eliminar espais inicials per detectar el patró
+        size_t firstNonSpace = currentLine.find_first_not_of(" \t");
+        if (firstNonSpace != string::npos) {
+            string trimmedLine = currentLine.substr(firstNonSpace);
+            
+            if (trimmedLine.length() >= 2 && 
+                trimmedLine[0] == '*' && 
+                trimmedLine[1] == ' ') {
+                // Verificar que hi hagi contingut després de l'asterisc
+                size_t contentStart = 1;
+                while (contentStart < trimmedLine.length() && trimmedLine[contentStart] == ' ') {
+                    contentStart++;
+                }
+                
+                if (contentStart < trimmedLine.length()) {
+                    isListItem = true;
+                    listItemContent = trimmedLine.substr(contentStart);
+                }
+            }
+        }
+        
         // Verificar si la línia està completament en negreta
         bool isBoldLine = false;
         string boldContent = "";
@@ -1148,8 +1173,8 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
         // Netejar negretes del contingut del títol
         if (isTitle) {
             // Eliminar ** del principi i final si existeixen
-                if (titleContent.length() >= 4 && 
-                    titleContent.find("**") == 0) {
+            if (titleContent.length() >= 4 && 
+                titleContent.find("**") == 0) {
                 size_t endBold = titleContent.find("**", 2);
                 if (endBold != string::npos && 
                     endBold == titleContent.length() - 2) {
@@ -1158,7 +1183,19 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             }
         }
         
-        if (isBoldLine) {
+        if (isListItem) {
+            // Renderitzar element de llista amb bullet
+            ImGui::BeginGroup();
+            
+            // Bullet amb una mica de padding
+            ImGui::Bullet();
+            ImGui::SameLine(0, 8.0f); // 8px d'espai entre el bullet i el text
+            
+            // Contingut de l'element de llista
+            ImGui::TextWrapped("%s", listItemContent.c_str());
+            
+            ImGui::EndGroup();
+        } else if (isBoldLine) {
             // Renderitzar en negreta - incrementar la mida de la font per simular negreta
             ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
             
