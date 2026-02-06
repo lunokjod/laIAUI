@@ -1,13 +1,7 @@
 #include "imgui/imgui.h"
-#ifdef USE_SDL
-#include "imgui/backends/imgui_impl_sdl2.h"
-#include "imgui/backends/imgui_impl_sdlrenderer2.h"
-#include <SDL2/SDL.h>
-#else
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
 #include "GLFW/glfw3.h"
-#endif
 #include <vector>
 #include <iostream>
 #include <string>
@@ -1075,43 +1069,6 @@ static float uiScale = 1.0f;
 static bool scaleChanged = false;
 */
 int main(int argc, char *argv[]) {
-#ifdef USE_SDL
-    // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-        return 1;
-    }
-    
-    // Create SDL window
-    float mainScale = 1.0f;
-    SDL_DisplayMode dm;
-    if (SDL_GetCurrentDisplayMode(0, &dm) == 0) {
-        mainScale = dm.dpi / 96.0f;
-    }
-    
-    SDL_Window* window = SDL_CreateWindow(
-        "",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        (int)(400 * mainScale), (int)(600 * mainScale),
-        SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
-    );
-    
-    if (window == nullptr) {
-        SDL_Quit();
-        return 2;
-    }
-    
-    // Create SDL renderer
-    SDL_Renderer* renderer = SDL_CreateRenderer(
-        window, -1, 
-        SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED
-    );
-    
-    if (renderer == nullptr) {
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 3;
-    }
-#else
     // Initialize GLFW
     if (!glfwInit()) {
         return 1;
@@ -1144,7 +1101,6 @@ int main(int argc, char *argv[]) {
     
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
-#endif
 
     // Initialize ImGui
     IMGUI_CHECKVERSION();
@@ -1209,13 +1165,8 @@ int main(int argc, char *argv[]) {
     if (!fontItalic) fontItalic = io.Fonts->AddFontDefault();
 
 
-#ifdef USE_SDL
-    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer2_Init(renderer);
-#else
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
-#endif
 
     ImGuiStyle& style = ImGui::GetStyle();
     // Arrodonir botons
@@ -1246,34 +1197,13 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, signalHandler);
     
     // Main loop
-#ifdef USE_SDL
-    bool done = false;
-    while (!done) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT)
-                done = true;
-            if (event.type == SDL_WINDOWEVENT && 
-                event.window.event == SDL_WINDOWEVENT_CLOSE && 
-                event.window.windowID == SDL_GetWindowID(window))
-                done = true;
-        }
-#else
     while (!glfwWindowShouldClose(window)) {
         // Process events
         glfwPollEvents();
-#endif
         // Update chat application (check for async task completion)
         chatApp.update();
-
-#ifdef USE_SDL
-        ImGui_ImplSDLRenderer2_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
-#else
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
-#endif
         ImGui::NewFrame();
 
         ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -1294,11 +1224,7 @@ int main(int argc, char *argv[]) {
                     chatApp.clearChat();
                 }
                 if (ImGui::MenuItem("Quit", "Ctrl+Q")) {
-#ifdef USE_SDL
-                    done = true;
-#else
                     glfwSetWindowShouldClose(window, true);
-#endif
                 }
                 ImGui::EndMenu();
             }
