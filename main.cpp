@@ -1022,22 +1022,18 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
                 codeBlockLanguage = currentLine.substr(3);
                 codeLineNumber = 1;
                 haveCodeTitle = true;
-                // Mostrar capçalera amb fons blau i lletres grogues
+                // Show header
                 if (!codeBlockLanguage.empty()) {
                     ImGui::BeginGroup();
                     
-                    // Fons violeta fosc (RGB: 80, 40, 120) - MOLT MÉS FOSC
-                    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.31f, 0.16f, 0.47f, 1.0f)); // Violeta fosc intens
-                    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f); // Vores arrodonides
+                    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.31f, 0.16f, 0.47f, 1.0f)); // dark violet
+                    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f); // rounded
                        
-                    // Crear un contenidor per a la capçalera
                     ImGui::BeginChild(("code_header_" + to_string(i)).c_str(), 
                                      ImVec2(0, ImGui::GetTextLineHeight() * 1.5f), 
                                      false, 
                                      ImGuiWindowFlags_NoScrollbar);
-                    // font and color
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // white text
-                    //ImGui::SetWindowFontScale(0.9f); // Mida lleugerament més petita
                     
                     // padding 
                     float textWidth = ImGui::CalcTextSize(codeBlockLanguage.c_str()).x;
@@ -1053,22 +1049,21 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
                     ImGui::SameLine();
                     ImGui::Bullet();
 
-                    ImGui::PopStyleColor(); // Text groc
-                    //ImGui::SetWindowFontScale(1.0f); // Restaurar mida
-                    
+                    ImGui::PopStyleColor(); // Text color
+
                     ImGui::EndChild();
                     ImGui::PopStyleVar(); // ChildRounding
                     ImGui::PopStyleColor(); // ChildBg
                     
                     ImGui::EndGroup();
                     
-                    // Afegir un petit espai després de la capçalera
                     ImGui::Spacing();
                 }
                 continue;
             } else {
                 // End code block
                 if ( haveCodeTitle ) {
+                    ImGui::Spacing();
                     ImGui::Separator();
                     haveCodeTitle=false; // race condition x'D 
                 }
@@ -1103,16 +1098,12 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             
             ImGui::TextWrapped("%s", currentLine.c_str());
             
-            // Restaurar estils
             ImGui::PopStyleVar(1);
             ImGui::PopStyleColor(2);
             
             ImGui::EndGroup();
             
-            // Incrementar el número de línia per a la següent línia de codi
             codeLineNumber++;
-            
-            // Afegir un petit espai després de la línia de codi (només si no és l'última línia)
             if (i < lines.size() - 1) {
                 ImGui::Spacing();
             }
@@ -1939,9 +1930,8 @@ int main(int argc, char *argv[]) {
             bool isLastMessage = (i == messages.size() - 1);
             bool isAIStreaming = (isLastMessage && 
                                 message.type == ChatApplication::ChatMessage::AI &&
-                                chatApp.getIsStreaming());        
+                                chatApp.getIsStreaming());
             ChatApplication::renderTextWithMarkdown(message.text, isAIStreaming);
-
             ImGui::PopStyleColor();
             
             ImGui::Spacing();
