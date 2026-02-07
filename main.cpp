@@ -1009,7 +1009,7 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
     bool inCodeBlock = false;
     string codeBlockLanguage = "";
     int codeLineNumber = 1;
-    
+    static bool haveCodeTitle = false;
     // Iterate lines
     for (size_t i = 0; i < lines.size(); i++) {
         string currentLine = lines[i];
@@ -1021,7 +1021,7 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
                 inCodeBlock = true;
                 codeBlockLanguage = currentLine.substr(3);
                 codeLineNumber = 1;
-                
+                haveCodeTitle = true;
                 // Mostrar capçalera amb fons blau i lletres grogues
                 if (!codeBlockLanguage.empty()) {
                     ImGui::BeginGroup();
@@ -1067,43 +1067,44 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
                 }
                 continue;
             } else {
-                // Final d'un bloc de codi
+                // End code block
+                if ( haveCodeTitle ) {
+                    ImGui::Separator();
+                    haveCodeTitle=false; // race condition x'D 
+                }
                 inCodeBlock = false;
                 codeBlockLanguage = "";
-                codeLineNumber = 1; // Reiniciar comptador per al proper bloc
+                codeLineNumber = 1;
                 continue;
             }
         }
         
-        // Si estem dins d'un bloc de codi, mostrar la línia amb estil de codi i número de línia
         if (inCodeBlock) {
-            // Crear un contenidor per a la línia de codi
             ImGui::BeginGroup();
             
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.2f, 0.8f, 1.0f)); // Púrpura
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.2f, 0.8f, 1.0f)); // Purple
             ImGui::SetWindowFontScale(0.8f);
             ImGui::Text("%4d", codeLineNumber); // from 0 to 9999
             ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor();
             
-            // Separador entre número i codi
-            ImGui::SameLine(0, 10.0f); // 10px d'espai
+            // A little separation
+            ImGui::SameLine(0, 10.0f);
             
-            // Contingut del codi
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Text gris clar
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f)); // Fons negre
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 10.0f)); // Padding intern
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f); // Vores arrodonides
+            // Code
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Dark grey
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f)); // Black
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 10.0f)); // Internal padding
+            //ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f); // Rounded
             
-            // Calcular l'amplada disponible per al codi (restant l'espai del número de línia)
-            float lineNumberWidth = ImGui::CalcTextSize("999").x * 0.8f + 10.0f; // Amplada per a 3 dígits (80%) + espai
+            // width available for code minus the line number
+            float lineNumberWidth = ImGui::CalcTextSize("9999").x * 0.8f + 10.0f;
             float availableWidth = ImGui::GetContentRegionAvail().x - lineNumberWidth;
             
-            // Renderitzar el text del codi
             ImGui::TextWrapped("%s", currentLine.c_str());
             
             // Restaurar estils
-            ImGui::PopStyleVar(2);
+            ImGui::PopStyleVar(1);
             ImGui::PopStyleColor(2);
             
             ImGui::EndGroup();
