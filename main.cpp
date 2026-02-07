@@ -1351,6 +1351,32 @@ public:
             ChatMessage cmdMessage;
             cmdMessage.type = ChatMessage::COMMAND_OUTPUT;
             cmdMessage.text = commandId + "|" + result.dump(); // Emmagatzemar l'ID i les dades JSON
+            
+            // Buscar l'últim missatge d'IA i separar-lo
+            if (!chatMessages.empty()) {
+                // Buscar des del final cap al principi
+                for (int i = chatMessages.size() - 1; i >= 0; i--) {
+                    if (chatMessages[i].type == ChatMessage::AI) {
+                        // Guardar el text actual de la IA
+                        string aiText = chatMessages[i].text;
+                        
+                        // Inserir el resultat de la comanda després del missatge d'IA
+                        chatMessages.insert(chatMessages.begin() + i + 1, cmdMessage);
+                        
+                        // Crear un nou missatge d'IA buit per continuar
+                        ChatMessage newAIMessage;
+                        newAIMessage.type = ChatMessage::AI;
+                        newAIMessage.text = "IA: ";
+                        
+                        // Inserir el nou missatge d'IA després del resultat de la comanda
+                        chatMessages.insert(chatMessages.begin() + i + 2, newAIMessage);
+                        
+                        return;
+                    }
+                }
+            }
+            
+            // Si no hi ha missatge d'IA, afegir normalment
             chatMessages.push_back(cmdMessage);
         }
     }
@@ -1430,7 +1456,7 @@ public:
                 {
                     lock_guard<mutex> lock(messagesMutex);
                     if (!chatMessages.empty()) {
-                        // Buscar l'últim missatge d'IA
+                        // Buscar l'últim missatge d'IA (des del final)
                         for (int i = chatMessages.size() - 1; i >= 0; i--) {
                             if (chatMessages[i].type == ChatMessage::AI) {
                                 // Actualitzar el text del missatge
