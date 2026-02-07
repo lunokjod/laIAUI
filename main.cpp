@@ -1799,11 +1799,37 @@ int main(int argc, char *argv[]) {
                         // Obtenir l'estat de col·lapse
                         bool isExpanded = chatApp.isCommandExpanded(commandId);
                         
+
                         // Crear l'encapçalament col·lapsable
                         string headerLabel = "cmd: " + result["command"].get<string>();
                         
+                        // Calcular l'amplada disponible per al header
+                        float availableWidth = ImGui::GetContentRegionAvail().x;
+                        float headerTextWidth = ImGui::CalcTextSize(headerLabel.c_str()).x;
+                        
+                        // Si el text és més ample que l'espai disponible, truncar-lo
+                        if (headerTextWidth > availableWidth) {
+                            // Començar amb el text complet i anar reduint fins que cap
+                            // Incloure els "..." en el càlcul de l'amplada
+                            string truncatedLabel = headerLabel;
+                            for (int len = headerLabel.length() - 1; len > 10; len--) {
+                                // Crear la versió truncada amb "..."
+                                truncatedLabel = headerLabel.substr(0, len) + "...";
+                                float truncatedWidth = ImGui::CalcTextSize(truncatedLabel.c_str()).x;
+                                if (truncatedWidth <= availableWidth) {
+                                    headerLabel = truncatedLabel;
+                                    break;
+                                }
+                            }
+                            // Si després del bucle encara no cap, forçar un truncament mínim
+                            if (headerTextWidth > availableWidth && headerLabel.length() > 13) {
+                                headerLabel = headerLabel.substr(0, 10) + "...";
+                            }
+                        }
+                        
                         // **Afegir identificador únic amb PushID**
                         ImGui::PushID(commandId.c_str());
+
                         
                         // Utilitzar CollapsingHeader amb bandera per detectar clics
                         ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.3f, 0.3f, 0.5f));
