@@ -1052,7 +1052,7 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
                     ImGui::Text("%s", codeBlockLanguage.c_str());
                     ImGui::SameLine();
                     ImGui::Bullet();
-                    
+
                     ImGui::PopStyleColor(); // Text groc
                     //ImGui::SetWindowFontScale(1.0f); // Restaurar mida
                     
@@ -1080,11 +1080,10 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             // Crear un contenidor per a la línia de codi
             ImGui::BeginGroup();
             
-            // Número de línia (púrpura) - MÉS PETIT
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.2f, 0.8f, 1.0f)); // Púrpura
-            ImGui::SetWindowFontScale(0.8f); // REDUIR LA MIDA DE LA LLETRA A 80%
-            ImGui::Text("%3d", codeLineNumber); // Format: 3 dígits amb espais a l'esquerra
-            ImGui::SetWindowFontScale(1.0f); // RESTAURAR MIDA NORMAL
+            ImGui::SetWindowFontScale(0.8f);
+            ImGui::Text("%4d", codeLineNumber); // from 0 to 9999
+            ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor();
             
             // Separador entre número i codi
