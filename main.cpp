@@ -997,34 +997,74 @@ private:
 static void renderMarkdownText(const string& text, bool isStreaming = false) {
     if (text.empty()) return;
     
-    // Separar el text per línies
+    // parse line by line
     vector<string> lines;
     stringstream ss(text);
     string line;
-    
     while (getline(ss, line)) {
         lines.push_back(line);
     }
     
-    // Estat per controlar si estem dins d'un bloc de codi
+    // prepare counters and flags for code block:
     bool inCodeBlock = false;
     string codeBlockLanguage = "";
-    int codeLineNumber = 1; // Comptador de línies dins del bloc de codi
+    int codeLineNumber = 1;
     
-    // Processar cada línia
+    // Iterate lines
     for (size_t i = 0; i < lines.size(); i++) {
         string currentLine = lines[i];
         
-        // Verificar si és l'inici o final d'un bloc de codi
+        // Code block tag
         if (currentLine.find("```") == 0) {
             if (!inCodeBlock) {
-                // Inici d'un bloc de codi
+                // Start code block
                 inCodeBlock = true;
-                codeBlockLanguage = currentLine.substr(3); // Pot contenir el llenguatge
-                codeLineNumber = 1; // Reiniciar comptador
+                codeBlockLanguage = currentLine.substr(3);
+                codeLineNumber = 1;
                 
-                // NO renderitzar la línia amb ``` - simplement saltar-la
-                // Continuar al següent element sense mostrar res
+                // Mostrar capçalera amb fons blau i lletres grogues
+                if (!codeBlockLanguage.empty()) {
+                    ImGui::BeginGroup();
+                    
+                    // Fons violeta fosc (RGB: 80, 40, 120) - MOLT MÉS FOSC
+                    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.31f, 0.16f, 0.47f, 1.0f)); // Violeta fosc intens
+                    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f); // Vores arrodonides
+                       
+                    // Crear un contenidor per a la capçalera
+                    ImGui::BeginChild(("code_header_" + to_string(i)).c_str(), 
+                                     ImVec2(0, ImGui::GetTextLineHeight() * 1.5f), 
+                                     false, 
+                                     ImGuiWindowFlags_NoScrollbar);
+                    // font and color
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // white text
+                    //ImGui::SetWindowFontScale(0.9f); // Mida lleugerament més petita
+                    
+                    // padding 
+                    float textWidth = ImGui::CalcTextSize(codeBlockLanguage.c_str()).x;
+                    float availableWidth = ImGui::GetContentRegionAvail().x;
+                    float rightPadding = 50.0f;
+                    float offset = availableWidth - textWidth - rightPadding;
+                    
+                    if (offset > 0) {
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+                    }
+                    
+                    ImGui::Text("%s", codeBlockLanguage.c_str());
+                    ImGui::SameLine();
+                    ImGui::Bullet();
+                    
+                    ImGui::PopStyleColor(); // Text groc
+                    //ImGui::SetWindowFontScale(1.0f); // Restaurar mida
+                    
+                    ImGui::EndChild();
+                    ImGui::PopStyleVar(); // ChildRounding
+                    ImGui::PopStyleColor(); // ChildBg
+                    
+                    ImGui::EndGroup();
+                    
+                    // Afegir un petit espai després de la capçalera
+                    ImGui::Spacing();
+                }
                 continue;
             } else {
                 // Final d'un bloc de codi
@@ -1285,12 +1325,10 @@ public:
     ~ChatApplication() {
     }
  
-    // Funció per renderitzar text amb Markdown
     static void renderTextWithMarkdown(const string& text, bool isStreaming = false) {
-        // Si està buit, no fer res
         if (text.empty()) return;
-        
-        // Separar el prefix "IA: " si existeix
+
+        // The prefix "IA: /Tu: "?
         string displayText = text;
         bool hasPrefix = false;
         if (text.find("IA: ") == 0) {
@@ -1301,16 +1339,15 @@ public:
             hasPrefix = true;
         }
         
-        // Renderitzar prefix si n'hi ha
+        // Render prefix
         if (hasPrefix) {
             string prefix = text.substr(0, 4);
-            ImGui::TextWrapped("%s", prefix.c_str());
+            ImGui::Text("%s", prefix.c_str());
             ImGui::SameLine(0, 0);
         }
-        
         renderMarkdownText(displayText, isStreaming);
         
-        // Afegir cursor si està en streaming
+        // Add cursor when streaming
         if (isStreaming) {
             ImGui::SameLine(0, 0);
             ImGui::Bullet();
@@ -1631,26 +1668,6 @@ int main(int argc, char *argv[]) {
 
 
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    /*
-    // Font monospace amb suport Unicode
-    ImFont* fontMono = nullptr;
-    const char* monoPaths[] = {
-        "/usr/share/fonts/truetype/noto/NotoMono-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-        "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
-        nullptr
-    };
-
-    for (int i = 0; monoPaths[i] != nullptr; i++) {
-        if (access(monoPaths[i], F_OK) != -1) {
-            fontMono = io.Fonts->AddFontFromFileTTF(monoPaths[i], 14.0f);
-            if (fontMono) break;
-        }
-    }
-
-    if (!fontMono) fontMono = io.Fonts->AddFontDefault();
-    */
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
@@ -1674,13 +1691,10 @@ int main(int argc, char *argv[]) {
     style.ChildRounding = 8.0f;
 
     ImVec4 bgColor = ImVec4(0.15f, 0.18f, 0.25f, 1.0f);
-    //style.Colors[ImGuiCol_WindowBg] = bgColor;
-    //style.Colors[ImGuiCol_ChildBg] = bgColor;
     style.Colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.23f, 0.30f, 1.0f);
     style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.25f, 0.28f, 0.35f, 1.0f);
     style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.30f, 0.33f, 0.40f, 1.0f);
 
-    // Create chat 
     // Create chat application
     ChatApplication chatApp;
     bool appInitialized = chatApp.initialize();
@@ -1691,9 +1705,7 @@ int main(int argc, char *argv[]) {
     
     // Main loop
     while (!glfwWindowShouldClose(window)) {
-        // Process events
         glfwPollEvents();
-        // Update chat application (check for async task completion)
         chatApp.update();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -1724,51 +1736,40 @@ int main(int argc, char *argv[]) {
 
             // Status indicator
             ImGui::SameLine(100);
-            //ImGui::SameLine(ImGui::GetWindowWidth() - 120);
             ImGui::Bullet();
             if (appInitialized) {
                 if (chatApp.getIsProcessingTask()) {
-                    // Crear efecto de parpadeo basado en el tiempo
+                    // blink
                     static float blinkTimer = 0.0f;
                     blinkTimer += ImGui::GetIO().DeltaTime;
-                    
-                    // Parpadeo cada 0.5 segundos (2 Hz)
+                    // every 0.5 secs (2 Hz)
                     float blinkCycle = fmod(blinkTimer, 1.0f);
                     float alpha = (blinkCycle < 0.5f) ? 1.0f : 0.3f;
                     
-                    // Obtenir el comptador de tokens actual
                     int tokenCount = chatApp.getCurrentQueryTokenCount();
-                    
-                    // Mostrar "Thinking..." amb el comptador de tokens
-                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, alpha), "Thinking (%d)...", tokenCount);
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, alpha), "Inferencing (%d)...", tokenCount);
                 } else {
                     // Obtenir estadístiques de sessió
                     auto [sessionTokens, sessionBytes] = chatApp.getSessionStats();
                     // Mostrar "Online" amb estadístiques de sessió
-                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Online (%d tokens, %d bytes)", 
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Ready (%d tokens, %d chars)", 
                                       sessionTokens, sessionBytes);
                 }
             } else {
-                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Offline");
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Unable to connect");
             }
-            
             ImGui::EndMenuBar();
         }
         
         // Get window size
         ImVec2 windowSize = ImGui::GetWindowSize();
-        // Calcular l'alçada disponible per al ChatArea
-        // Restem: 
-        // 1. Alçada de l'entrada de text (chatInputHeight)
-        // 2. Separador
-        // 3. Checkbox i tooltip
-        // 4. Padding extra
+        // obtain screen controls height
         float menuBarHeight = ImGui::GetFrameHeight();
         float separatorHeight = ImGui::GetFrameHeight() * 0.5f;
         float checkboxHeight = ImGui::GetFrameHeight();
         float padding = ImGui::GetStyle().WindowPadding.y * 2;
         float extraSpacing = 20.0f;
-
+        // calculate ChatArea availiable size
         float availableHeight = windowSize.y 
         - menuBarHeight 
         - separatorHeight 
@@ -1777,15 +1778,10 @@ int main(int argc, char *argv[]) {
         - checkboxHeight 
         - padding
         - extraSpacing;
-        
-        // Assegurar-nos que l'alçada no sigui negativa
-        if (availableHeight < 50.0f) {
-            availableHeight = 50.0f;
-        }
-        // Chat area
+
         ImGui::BeginChild("ChatArea", ImVec2(0, availableHeight), false, ImGuiWindowFlags_None);
         
-        // Afegir menú contextual al ChatArea
+        // Context menu in ChatArea
         if (ImGui::BeginPopupContextWindow("ChatContextMenu")) {
             if (ImGui::MenuItem("Copy all")) {
                 string allChatText = chatApp.getAllChatText();
@@ -1794,17 +1790,15 @@ int main(int argc, char *argv[]) {
             ImGui::EndPopup();
         }
         
-
         // Display chat messages with colors
         const auto messages = chatApp.getChatMessages();
         for (size_t i = 0; i < messages.size(); i++) {
             const auto& message = messages[i];
             
-            // Verificar si és un missatge de sortida de comanda amb estructura especial
             if (message.type == ChatApplication::ChatMessage::COMMAND_OUTPUT && 
                 message.text.find("cmd_") == 0) {
                 
-                // Separar l'ID de la comanda i les dades JSON
+                // Get ID
                 size_t separatorPos = message.text.find('|');
                 if (separatorPos != string::npos) {
                     string commandId = message.text.substr(0, separatorPos);
@@ -1815,31 +1809,25 @@ int main(int argc, char *argv[]) {
                         if (result.contains("explanation") && !result["explanation"].get<string>().empty()) {
                             string explanation = result["explanation"];
                             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
-                            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
+                            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
                             ImGui::TextWrapped("> %s", explanation.c_str());
                             ImGui::PopFont();
                             ImGui::PopStyleColor();
                             ImGui::Spacing();
                         }
                         
-                        // Obtenir l'estat de col·lapse
                         bool isExpanded = chatApp.isCommandExpanded(commandId);
-                        
-
-                        // Crear l'encapçalament col·lapsable
                         string headerLabel = "cmd: " + result["command"].get<string>();
                         
-                        // Calcular l'amplada disponible per al header
+                        // get header available width
                         float availableWidth = ImGui::GetContentRegionAvail().x;
                         float headerTextWidth = ImGui::CalcTextSize(headerLabel.c_str()).x;
                         
-                        // Si el text és més ample que l'espai disponible, truncar-lo
+                        // Truncate?
                         if (headerTextWidth > availableWidth) {
-                            // Començar amb el text complet i anar reduint fins que cap
-                            // Incloure els "..." en el càlcul de l'amplada
                             string truncatedLabel = headerLabel;
-                            for (int len = headerLabel.length() - 1; len > 10; len--) {
-                                // Crear la versió truncada amb "..."
+                            for (int len = headerLabel.length() - 1; len > 1; len--) {
+                                // Don't fit, must be truncated
                                 truncatedLabel = headerLabel.substr(0, len) + "...";
                                 float truncatedWidth = ImGui::CalcTextSize(truncatedLabel.c_str()).x;
                                 if (truncatedWidth <= availableWidth) {
@@ -1847,25 +1835,18 @@ int main(int argc, char *argv[]) {
                                     break;
                                 }
                             }
-                            // Si després del bucle encara no cap, forçar un truncament mínim
-                            if (headerTextWidth > availableWidth && headerLabel.length() > 13) {
-                                headerLabel = headerLabel.substr(0, 10) + "...";
-                            }
                         }
                         
-                        // **Afegir identificador únic amb PushID**
+                        // Unique ID
                         ImGui::PushID(commandId.c_str());
 
                         
-                        // Utilitzar CollapsingHeader amb bandera per detectar clics
                         ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.3f, 0.3f, 0.5f));
                         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.4f, 0.4f, 0.4f, 0.7f));
                         ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.5f, 0.5f, 0.5f, 0.9f));
                         
-                        // ** Utilitzar una variable local per al resultat del CollapsingHeader**
                         bool headerClicked = false;
                         
-                        // ** Renderitzar el CollapsingHeader amb l'estat correcte**
                         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_None;
                         if (isExpanded) {
                             flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -1875,49 +1856,42 @@ int main(int argc, char *argv[]) {
                         
                         ImGui::PopStyleColor(3);
                         
-                        // **Actualitzar l'estat només quan hi ha un canvi**
                         if (headerOpen != isExpanded) {
                             chatApp.toggleCommandExpanded(commandId);
                         }
                         
-                        // ** Mostrar el contingut SI l'header està obert**
                         if (headerOpen) {
                             ImGui::Indent();
                             
-                            // Mostrar stdout en gris
                             if (result.contains("stdout") && !result["stdout"].get<string>().empty()) {
                                 string stdoutText = result["stdout"];
                                 if (!stdoutText.empty() && stdoutText.back() == '\n') {
                                     stdoutText.pop_back();
                                 }
-                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // gray
                                 ImGui::TextWrapped("%s", stdoutText.c_str());
                                 ImGui::PopStyleColor();
                             }
                             
-                            // Mostrar stderr en vermell
                             if (result.contains("stderr") && !result["stderr"].get<string>().empty()) {
                                 string stderrText = result["stderr"];
                                 if (!stderrText.empty() && stderrText.back() == '\n') {
                                     stderrText.pop_back();
                                 }
-                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f)); // red
                                 ImGui::TextWrapped("%s", stderrText.c_str());
                                 ImGui::PopStyleColor();
                             }
                             
-                            // Mostrar informació addicional
                             ImGui::Spacing();
                             ImGui::Separator();
                             ImGui::Spacing();
                             
-                            // Directori actual
                             if (result.contains("currentDirectory")) {
                                 string dir = result["currentDirectory"];
                                 ImGui::Text("path: %s", dir.c_str());
                             }
-                            
-                            // Estat i codi de retorn a la mateixa línia
+
                             if (result.contains("status")) {
                                 string status = result["status"];
                                 ImVec4 statusColor = (status == "success") ? 
@@ -1925,18 +1899,12 @@ int main(int argc, char *argv[]) {
                                     ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
                                 ImGui::TextColored(statusColor, "Status: %s", status.c_str());
                                 
-                                // Afegir codi de retorn a la mateixa línia
                                 ImGui::SameLine();
-                                if (result.contains("returnCode")) {
-                                    int returnCode = result["returnCode"];
-                                    ImGui::Text("ret: %d", returnCode);
-                                }
-                            } else if (result.contains("returnCode")) {
-                                // Si només hi ha codi de retorn sense estat
+                            }
+                            if (result.contains("returnCode")) {
                                 int returnCode = result["returnCode"];
                                 ImGui::Text("ret: %d", returnCode);
-                            }
-                            
+                            }                            
                             ImGui::Unindent();
                         }
                         
@@ -1945,28 +1913,26 @@ int main(int argc, char *argv[]) {
                     } catch (const json::exception& e) {
                         ImGui::TextWrapped("%s", message.text.c_str());
                     }
-                    
-                    // Saltar al següent missatge
                     continue;
                 }
             }
             
-            // Per als altres tipus de missatges, mostrar normalment
+            // Other kind of messages only uses colors
             switch (message.type) {
                 case ChatApplication::ChatMessage::USER:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 1.0f, 1.0f));  // Blau clar
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.8f, 1.0f, 1.0f));  // Blue
                     break;
                 case ChatApplication::ChatMessage::AI:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 0.3f, 1.0f));  // Verd groguenc
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 0.3f, 1.0f));  // Green
                     break;
                 case ChatApplication::ChatMessage::COMMAND_OUTPUT:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));  // Gris
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));  // Gray
                     break;
                 case ChatApplication::ChatMessage::COMMAND_ERROR:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));  // Vermell
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));  // Red
                     break;
                 case ChatApplication::ChatMessage::SYSTEM:
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 0.5f, 1.0f));  // Verd clar
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.8f, 0.5f, 1.0f));  // Light Green
                     break;
             }
 
@@ -1978,7 +1944,6 @@ int main(int argc, char *argv[]) {
 
             ImGui::PopStyleColor();
             
-            // Afegir un petit espai entre missatges
             ImGui::Spacing();
         }
 
