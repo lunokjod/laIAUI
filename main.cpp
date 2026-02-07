@@ -1107,17 +1107,12 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             if (i < lines.size() - 1) {
                 ImGui::Spacing();
             }
-            
-            continue; // Saltar al processament de la següent línia
+            continue;
         }
-        
-        // Si no estem en un bloc de codi, processar Markdown normalment
-        
-        // Verificar si és una llista amb asterisc (*)
+        // is list?
         bool isListItem = false;
         string listItemContent = "";
         
-        // Eliminar espais inicials per detectar el patró
         size_t firstNonSpace = currentLine.find_first_not_of(" \t");
         if (firstNonSpace != string::npos) {
             string trimmedLine = currentLine.substr(firstNonSpace);
@@ -1125,12 +1120,8 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             if (trimmedLine.length() >= 2 && 
                 trimmedLine[0] == '*' && 
                 trimmedLine[1] == ' ') {
-                // Verificar que hi hagi contingut després de l'asterisc
                 size_t contentStart = 1;
-                while (contentStart < trimmedLine.length() && trimmedLine[contentStart] == ' ') {
-                    contentStart++;
-                }
-                
+                while (contentStart < trimmedLine.length() && trimmedLine[contentStart] == ' ') { contentStart++; }
                 if (contentStart < trimmedLine.length()) {
                     isListItem = true;
                     listItemContent = trimmedLine.substr(contentStart);
@@ -1138,7 +1129,7 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             }
         }
         
-        // Verificar si la línia està completament en negreta
+        // is bold?
         bool isBoldLine = false;
         string boldContent = "";
         
@@ -1153,27 +1144,25 @@ static void renderMarkdownText(const string& text, bool isStreaming = false) {
             }
         }
         
-        // Verificar si és un títol (#, ##, ###, etc.)
+        // is Title?
         bool isTitle = false;
         int titleLevel = 0;
         string titleContent = "";
         
-        // Comprovar diferents nivells de títol
         for (int level = 1; level <= 6; level++) {
             string prefix = string(level, '#') + " ";
             if (currentLine.length() >= prefix.length() && 
                 currentLine.find(prefix) == 0) {
                 isTitle = true;
                 titleLevel = level;
-                titleContent = currentLine.substr(prefix.length()); // Eliminar prefix
+                titleContent = currentLine.substr(prefix.length()); // remove prefix
                 break;
             }
         }
         
-        // Verificar si és un separador (---)
+        // is separator?
         bool isSeparator = false;
         if (currentLine.length() >= 3) {
-            // Eliminar espais al principi i final
             string trimmedLine = currentLine;
             size_t firstNonSpace = trimmedLine.find_first_not_of(" \t");
             size_t lastNonSpace = trimmedLine.find_last_not_of(" \t");
