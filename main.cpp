@@ -213,7 +213,7 @@ public:
 };
 
 
-// Terminal emulator class (simplified for GUI)
+// Terminal emulator class
 class TerminalEmulator {
 private:
     string workingDir;
@@ -221,7 +221,7 @@ private:
 public:
     TerminalEmulator(const string& initialDir = "") {
         if (initialDir.empty()) {
-            char buffer[1024];
+            char buffer[32768];
             if (getcwd(buffer, sizeof(buffer))) {
                 workingDir = buffer;
             } else {
@@ -246,7 +246,7 @@ public:
     };
 
     CommandResult executeCommand(const string& command) {
-        char originalDir[1024];
+        char originalDir[32768];
         getcwd(originalDir, sizeof(originalDir));
         
         try {
@@ -268,7 +268,7 @@ public:
                 return {false, -1, "", "Error executing command", command};
             }
             
-            char buffer[4096];
+            char buffer[32768];
             string stdoutResult;
             while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
                 stdoutResult += buffer;
@@ -281,7 +281,7 @@ public:
             string stderrResult = "";
             FILE* stderrFile = fopen(tempFile.c_str(), "r");
             if (stderrFile) {
-                char stderrBuffer[4096];
+                char stderrBuffer[32768];
                 while (fgets(stderrBuffer, sizeof(stderrBuffer), stderrFile) != nullptr) {
                     stderrResult += stderrBuffer;
                 }
@@ -292,7 +292,7 @@ public:
             
             // Update directory if cd command
             if (command.find("cd ") != string::npos && success) {
-                char currentDir[1024];
+                char currentDir[32768];
                 if (getcwd(currentDir, sizeof(currentDir))) {
                     workingDir = currentDir;
                 }
@@ -320,7 +320,7 @@ public:
             }
             
             if (chdir(targetDir.c_str()) == 0) {
-                char buffer[1024];
+                char buffer[32768];
                 if (getcwd(buffer, sizeof(buffer))) {
                     workingDir = buffer;
                     return true;
@@ -407,7 +407,7 @@ private:
                                     string content = delta["content"];
                                     if (!content.empty()) {
                                         streamData->fullResponse += content;
-                                        // Enviar el chunk al callback EN TEMPS REAL
+                                        // Enviar el chunk al callback
                                         try {
                                             (*streamData->onChunk)(content);
                                         } catch (const bad_function_call& e) {
@@ -967,7 +967,7 @@ public:
     
 private:
     unique_ptr<AsyncTaskManager> asyncTaskManager;
-    char textBuffer[16384];
+    char textBuffer[32768];
     bool isInitialized;
     bool isProcessingTask;
     string currentProcessingMessage;
@@ -989,295 +989,279 @@ private:
     vector<CommandOutputState> commandOutputStates;
     int nextCommandId;
 
-    
-    
-    
-
-
-static void renderMarkdownText(const string& text, bool isStreaming = false) {
-    if (text.empty()) return;
-    
-    // parse line by line
-    vector<string> lines;
-    stringstream ss(text);
-    string line;
-    while (getline(ss, line)) {
-        lines.push_back(line);
-    }
-    
-    // prepare counters and flags for code block:
-    bool inCodeBlock = false;
-    string codeBlockLanguage = "";
-    int codeLineNumber = 1;
-    static bool haveCodeTitle = false;
-    // Iterate lines
-    for (size_t i = 0; i < lines.size(); i++) {
-        string currentLine = lines[i];
+    static void renderMarkdownText(const string& text, bool isStreaming = false) {
+        if (text.empty()) return;
         
-        // Code block tag
-        if (currentLine.find("```") == 0) {
-            if (!inCodeBlock) {
-                // Start code block
-                inCodeBlock = true;
-                codeBlockLanguage = currentLine.substr(3);
-                codeLineNumber = 1;
-                haveCodeTitle = true;
-                // Show header
-                if (!codeBlockLanguage.empty()) {
-                    ImGui::BeginGroup();
-                    
-                    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.31f, 0.16f, 0.47f, 1.0f)); // dark violet
-                    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f); // rounded
-                       
-                    ImGui::BeginChild(("code_header_" + to_string(i)).c_str(), 
-                                     ImVec2(0, ImGui::GetTextLineHeight() * 1.5f), 
-                                     false, 
-                                     ImGuiWindowFlags_NoScrollbar);
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // white text
-                    
-                    // padding 
-                    float textWidth = ImGui::CalcTextSize(codeBlockLanguage.c_str()).x;
-                    float availableWidth = ImGui::GetContentRegionAvail().x;
-                    float rightPadding = 50.0f;
-                    float offset = availableWidth - textWidth - rightPadding;
-                    
-                    if (offset > 0) {
-                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
-                    }
-                    
-                    ImGui::Text("%s", codeBlockLanguage.c_str());
-                    ImGui::SameLine();
-                    ImGui::Bullet();
-
-                    ImGui::PopStyleColor(); // Text color
-
-                    ImGui::EndChild();
-                    ImGui::PopStyleVar(); // ChildRounding
-                    ImGui::PopStyleColor(); // ChildBg
-                    
-                    ImGui::EndGroup();
-                    
-                    ImGui::Spacing();
-                }
-                continue;
-            } else {
-                // End code block
-                if ( haveCodeTitle ) {
-                    ImGui::Spacing();
-                    ImGui::Separator();
-                    haveCodeTitle=false; // race condition x'D 
-                }
-                inCodeBlock = false;
-                codeBlockLanguage = "";
-                codeLineNumber = 1;
-                continue;
-            }
+        // parse line by line
+        vector<string> lines;
+        stringstream ss(text);
+        string line;
+        while (getline(ss, line)) {
+            lines.push_back(line);
         }
         
-        if (inCodeBlock) {
-            ImGui::BeginGroup();
+        // prepare counters and flags for code block:
+        bool inCodeBlock = false;
+        string codeBlockLanguage = "";
+        int codeLineNumber = 1;
+        static bool haveCodeTitle = false;
+        // Iterate lines
+        for (size_t i = 0; i < lines.size(); i++) {
+            string currentLine = lines[i];
             
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.2f, 0.8f, 1.0f)); // Purple
-            ImGui::SetWindowFontScale(0.8f);
-            ImGui::Text("%4d", codeLineNumber); // from 0 to 9999
-            ImGui::SetWindowFontScale(1.0f);
-            ImGui::PopStyleColor();
+            // Code block tag
+            if (currentLine.find("```") == 0) {
+                if (!inCodeBlock) {
+                    // Start code block
+                    inCodeBlock = true;
+                    codeBlockLanguage = currentLine.substr(3);
+                    codeLineNumber = 1;
+                    haveCodeTitle = true;
+                    // Show header
+                    if (!codeBlockLanguage.empty()) {
+                        ImGui::BeginGroup();
+                        
+                        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.31f, 0.16f, 0.47f, 1.0f)); // dark violet
+                        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f); // rounded
+                        
+                        ImGui::BeginChild(("code_header_" + to_string(i)).c_str(), 
+                                        ImVec2(0, ImGui::GetTextLineHeight() * 1.5f), 
+                                        false, 
+                                        ImGuiWindowFlags_NoScrollbar);
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // white text
+                        
+                        // padding 
+                        float textWidth = ImGui::CalcTextSize(codeBlockLanguage.c_str()).x;
+                        float availableWidth = ImGui::GetContentRegionAvail().x;
+                        float rightPadding = 50.0f;
+                        float offset = availableWidth - textWidth - rightPadding;
+                        
+                        if (offset > 0) {
+                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+                        }
+                        
+                        ImGui::Text("%s", codeBlockLanguage.c_str());
+                        ImGui::SameLine();
+                        ImGui::Bullet();
+
+                        ImGui::PopStyleColor(); // Text color
+
+                        ImGui::EndChild();
+                        ImGui::PopStyleVar(); // ChildRounding
+                        ImGui::PopStyleColor(); // ChildBg
+                        
+                        ImGui::EndGroup();
+                        
+                        ImGui::Spacing();
+                    }
+                    continue;
+                } else {
+                    // End code block
+                    if ( haveCodeTitle ) {
+                        ImGui::Spacing();
+                        ImGui::Separator();
+                        haveCodeTitle=false; // race condition x'D 
+                    }
+                    inCodeBlock = false;
+                    codeBlockLanguage = "";
+                    codeLineNumber = 1;
+                    continue;
+                }
+            }
             
-            // A little separation
-            ImGui::SameLine(0, 10.0f);
+            if (inCodeBlock) {
+                ImGui::BeginGroup();
+                
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.2f, 0.8f, 1.0f)); // Purple
+                ImGui::SetWindowFontScale(0.8f);
+                ImGui::Text("%4d", codeLineNumber); // from 0 to 9999
+                ImGui::SetWindowFontScale(1.0f);
+                ImGui::PopStyleColor();
+                
+                // A little separation
+                ImGui::SameLine(0, 10.0f);
+                
+                // Code
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Dark grey
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f)); // Black
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 10.0f)); // Internal padding
+                //ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f); // Rounded
+                
+                // width available for code minus the line number
+                float lineNumberWidth = ImGui::CalcTextSize("9999").x * 0.8f + 10.0f;
+                float availableWidth = ImGui::GetContentRegionAvail().x - lineNumberWidth;
+                
+                ImGui::TextWrapped("%s", currentLine.c_str());
+                
+                ImGui::PopStyleVar(1);
+                ImGui::PopStyleColor(2);
+                
+                ImGui::EndGroup();
+                
+                codeLineNumber++;
+                if (i < lines.size() - 1) {
+                    ImGui::Spacing();
+                }
+                continue;
+            }
+            // is list?
+            bool isListItem = false;
+            string listItemContent = "";
             
-            // Code
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f)); // Dark grey
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f)); // Black
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 10.0f)); // Internal padding
-            //ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f); // Rounded
+            size_t firstNonSpace = currentLine.find_first_not_of(" \t");
+            if (firstNonSpace != string::npos) {
+                string trimmedLine = currentLine.substr(firstNonSpace);
+                
+                if (trimmedLine.length() >= 2 && 
+                    trimmedLine[0] == '*' && 
+                    trimmedLine[1] == ' ') {
+                    size_t contentStart = 1;
+                    while (contentStart < trimmedLine.length() && trimmedLine[contentStart] == ' ') { contentStart++; }
+                    if (contentStart < trimmedLine.length()) {
+                        isListItem = true;
+                        listItemContent = trimmedLine.substr(contentStart);
+                    }
+                }
+            }
             
-            // width available for code minus the line number
-            float lineNumberWidth = ImGui::CalcTextSize("9999").x * 0.8f + 10.0f;
-            float availableWidth = ImGui::GetContentRegionAvail().x - lineNumberWidth;
+            // is bold?
+            bool isBoldLine = false;
+            string boldContent = "";
             
-            ImGui::TextWrapped("%s", currentLine.c_str());
+            // Patró: **text** (sense res més a la línia)
+            if (currentLine.length() >= 4 && 
+                currentLine.find("**") == 0) {
+                size_t endBold = currentLine.find("**", 2);
+                if (endBold != string::npos && 
+                    endBold == currentLine.length() - 2) {
+                    isBoldLine = true;
+                    boldContent = currentLine.substr(2, endBold - 2);
+                }
+            }
             
-            ImGui::PopStyleVar(1);
-            ImGui::PopStyleColor(2);
+            // is Title?
+            bool isTitle = false;
+            int titleLevel = 0;
+            string titleContent = "";
             
-            ImGui::EndGroup();
+            for (int level = 1; level <= 6; level++) {
+                string prefix = string(level, '#') + " ";
+                if (currentLine.length() >= prefix.length() && 
+                    currentLine.find(prefix) == 0) {
+                    isTitle = true;
+                    titleLevel = level;
+                    titleContent = currentLine.substr(prefix.length()); // remove prefix
+                    break;
+                }
+            }
             
-            codeLineNumber++;
+            // is separator?
+            bool isSeparator = false;
+            if (currentLine.length() >= 3) {
+                string trimmedLine = currentLine;
+                size_t firstNonSpace = trimmedLine.find_first_not_of(" \t");
+                size_t lastNonSpace = trimmedLine.find_last_not_of(" \t");
+                
+                if (firstNonSpace != string::npos && lastNonSpace != string::npos) {
+                    trimmedLine = trimmedLine.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
+                    
+                    // Comprovar si és un separador (--- o ***)
+                    if (trimmedLine.length() >= 3 && 
+                        (trimmedLine.find("---") == 0 || trimmedLine.find("***") == 0)) {
+                        // Verificar que tots els caràcters siguin '-' o '*'
+                        bool allSame = true;
+                        char firstChar = trimmedLine[0];
+                        for (char c : trimmedLine) {
+                            if (c != firstChar) {
+                                allSame = false;
+                                break;
+                            }
+                        }
+                        if (allSame && trimmedLine.length() >= 3) {
+                            isSeparator = true;
+                        }
+                    }
+                }
+            }
+            
+            // Netejar negretes del contingut del títol
+            if (isTitle) {
+                // Eliminar ** del principi i final si existeixen
+                if (titleContent.length() >= 4 && 
+                    titleContent.find("**") == 0) {
+                    size_t endBold = titleContent.find("**", 2);
+                    if (endBold != string::npos && 
+                        endBold == titleContent.length() - 2) {
+                        titleContent = titleContent.substr(2, endBold - 2);
+                    }
+                }
+            }
+            
+            if (isListItem) {
+                // Renderitzar element de llista amb bullet
+                ImGui::BeginGroup();
+                
+                // Bullet amb una mica de padding
+                ImGui::Bullet();
+                ImGui::SameLine(0, 8.0f); // 8px d'espai entre el bullet i el text
+                
+                // Contingut de l'element de llista
+                ImGui::TextWrapped("%s", listItemContent.c_str());
+                
+                ImGui::EndGroup();
+            } else if (isBoldLine) {
+                // Renderitzar en negreta - incrementar la mida de la font per simular negreta
+                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
+                
+                // Establir nova escala per simular negreta
+                ImGui::SetWindowFontScale(1.1f); // 10% més gran
+                
+                // Utilitzar TextColored en lloc de PushStyleColor/PopStyleColor
+                // Així no interfereix amb el color del tipus de missatge
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", boldContent.c_str());
+                
+                // Restaurar l'escala per defecte
+                ImGui::SetWindowFontScale(1.0f);
+                
+                ImGui::PopFont();
+            } else if (isTitle) {
+                // Renderitzar títol amb mida proporcional al nivell
+                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
+                
+                // Configurar espai segons el nivell
+                float verticalPadding = 10.0f - (titleLevel * 1.0f); // Més padding per títols superiors
+                if (verticalPadding < 4.0f) verticalPadding = 4.0f;
+                
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, verticalPadding));
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 4));
+                
+                // Escalar la font segons el nivell del títol
+                // # = 1.4, ## = 1.3, ### = 1.2, #### = 1.1, etc.
+                float fontSizeScale = 1.5f - (titleLevel * 0.1f);
+                if (fontSizeScale < 1.0f) fontSizeScale = 1.0f;
+                
+                ImGui::SetWindowFontScale(fontSizeScale);
+                ImGui::TextWrapped("%s", titleContent.c_str());
+                ImGui::SetWindowFontScale(1.0f);
+                
+                ImGui::PopStyleVar(2);
+                ImGui::PopFont();
+            } else if (isSeparator) {
+                // Renderitzar separador
+                ImGui::Separator();
+            } else {
+                // Renderitzar normalment
+                ImGui::TextWrapped("%s", currentLine.c_str());
+            }
+            
+            // Afegir un petit espai entre línies (excepte l'última)
             if (i < lines.size() - 1) {
                 ImGui::Spacing();
             }
-            continue;
-        }
-        // is list?
-        bool isListItem = false;
-        string listItemContent = "";
-        
-        size_t firstNonSpace = currentLine.find_first_not_of(" \t");
-        if (firstNonSpace != string::npos) {
-            string trimmedLine = currentLine.substr(firstNonSpace);
-            
-            if (trimmedLine.length() >= 2 && 
-                trimmedLine[0] == '*' && 
-                trimmedLine[1] == ' ') {
-                size_t contentStart = 1;
-                while (contentStart < trimmedLine.length() && trimmedLine[contentStart] == ' ') { contentStart++; }
-                if (contentStart < trimmedLine.length()) {
-                    isListItem = true;
-                    listItemContent = trimmedLine.substr(contentStart);
-                }
-            }
-        }
-        
-        // is bold?
-        bool isBoldLine = false;
-        string boldContent = "";
-        
-        // Patró: **text** (sense res més a la línia)
-        if (currentLine.length() >= 4 && 
-            currentLine.find("**") == 0) {
-            size_t endBold = currentLine.find("**", 2);
-            if (endBold != string::npos && 
-                endBold == currentLine.length() - 2) {
-                isBoldLine = true;
-                boldContent = currentLine.substr(2, endBold - 2);
-            }
-        }
-        
-        // is Title?
-        bool isTitle = false;
-        int titleLevel = 0;
-        string titleContent = "";
-        
-        for (int level = 1; level <= 6; level++) {
-            string prefix = string(level, '#') + " ";
-            if (currentLine.length() >= prefix.length() && 
-                currentLine.find(prefix) == 0) {
-                isTitle = true;
-                titleLevel = level;
-                titleContent = currentLine.substr(prefix.length()); // remove prefix
-                break;
-            }
-        }
-        
-        // is separator?
-        bool isSeparator = false;
-        if (currentLine.length() >= 3) {
-            string trimmedLine = currentLine;
-            size_t firstNonSpace = trimmedLine.find_first_not_of(" \t");
-            size_t lastNonSpace = trimmedLine.find_last_not_of(" \t");
-            
-            if (firstNonSpace != string::npos && lastNonSpace != string::npos) {
-                trimmedLine = trimmedLine.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
-                
-                // Comprovar si és un separador (--- o ***)
-                if (trimmedLine.length() >= 3 && 
-                    (trimmedLine.find("---") == 0 || trimmedLine.find("***") == 0)) {
-                    // Verificar que tots els caràcters siguin '-' o '*'
-                    bool allSame = true;
-                    char firstChar = trimmedLine[0];
-                    for (char c : trimmedLine) {
-                        if (c != firstChar) {
-                            allSame = false;
-                            break;
-                        }
-                    }
-                    if (allSame && trimmedLine.length() >= 3) {
-                        isSeparator = true;
-                    }
-                }
-            }
-        }
-        
-        // Netejar negretes del contingut del títol
-        if (isTitle) {
-            // Eliminar ** del principi i final si existeixen
-            if (titleContent.length() >= 4 && 
-                titleContent.find("**") == 0) {
-                size_t endBold = titleContent.find("**", 2);
-                if (endBold != string::npos && 
-                    endBold == titleContent.length() - 2) {
-                    titleContent = titleContent.substr(2, endBold - 2);
-                }
-            }
-        }
-        
-        if (isListItem) {
-            // Renderitzar element de llista amb bullet
-            ImGui::BeginGroup();
-            
-            // Bullet amb una mica de padding
-            ImGui::Bullet();
-            ImGui::SameLine(0, 8.0f); // 8px d'espai entre el bullet i el text
-            
-            // Contingut de l'element de llista
-            ImGui::TextWrapped("%s", listItemContent.c_str());
-            
-            ImGui::EndGroup();
-        } else if (isBoldLine) {
-            // Renderitzar en negreta - incrementar la mida de la font per simular negreta
-            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
-            
-            // Establir nova escala per simular negreta
-            ImGui::SetWindowFontScale(1.1f); // 10% més gran
-            
-            // Utilitzar TextColored en lloc de PushStyleColor/PopStyleColor
-            // Així no interfereix amb el color del tipus de missatge
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", boldContent.c_str());
-            
-            // Restaurar l'escala per defecte
-            ImGui::SetWindowFontScale(1.0f);
-            
-            ImGui::PopFont();
-        } else if (isTitle) {
-            // Renderitzar títol amb mida proporcional al nivell
-            ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]); // Font regular
-            
-            // Configurar espai segons el nivell
-            float verticalPadding = 10.0f - (titleLevel * 1.0f); // Més padding per títols superiors
-            if (verticalPadding < 4.0f) verticalPadding = 4.0f;
-            
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, verticalPadding));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 4));
-            
-            // Escalar la font segons el nivell del títol
-            // # = 1.4, ## = 1.3, ### = 1.2, #### = 1.1, etc.
-            float fontSizeScale = 1.5f - (titleLevel * 0.1f);
-            if (fontSizeScale < 1.0f) fontSizeScale = 1.0f;
-            
-            ImGui::SetWindowFontScale(fontSizeScale);
-            ImGui::TextWrapped("%s", titleContent.c_str());
-            ImGui::SetWindowFontScale(1.0f);
-            
-            ImGui::PopStyleVar(2);
-            ImGui::PopFont();
-        } else if (isSeparator) {
-            // Renderitzar separador
-            ImGui::Separator();
-        } else {
-            // Renderitzar normalment
-            ImGui::TextWrapped("%s", currentLine.c_str());
-        }
-        
-        // Afegir un petit espai entre línies (excepte l'última)
-        if (i < lines.size() - 1) {
-            ImGui::Spacing();
         }
     }
-}
-
-
-
-
-
-
-
-
-
-
 
 public:
-    // Estructura per emmagatzemar missatges amb tipus
     struct ChatMessage {
         string text;
         enum Type { USER, AI, COMMAND_OUTPUT, COMMAND_ERROR, SYSTEM } type;
@@ -1292,18 +1276,16 @@ public:
 private:
     vector<ChatMessage> chatMessages;
 
-
 public:
     ChatApplication() : isInitialized(false), isProcessingTask(false), 
                        requestFocusAfterResponse(false), toolsEnabled(false),
                        isStreaming(false), nextCommandId(0),
                        currentQueryTokenCount(0),
-                       sessionTotalTokens(0), sessionTotalBytes(0) {  // NOU: Inicialitzar comptadors de sessió
+                       sessionTotalTokens(0), sessionTotalBytes(0) {
         memset(textBuffer, 0, sizeof(textBuffer));
     }
     
-    ~ChatApplication() {
-    }
+    ~ChatApplication() { }
  
     static void renderTextWithMarkdown(const string& text, bool isStreaming = false) {
         if (text.empty()) return;
@@ -1326,14 +1308,30 @@ public:
             ImGui::SameLine(0, 0);
         }
         renderMarkdownText(displayText, isStreaming);
-        
         // Add cursor when streaming
         if (isStreaming) {
             ImGui::SameLine(0, 0);
-            ImGui::Bullet();
+            
+            // white blinking square cursor
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+            float cursorHeight = ImGui::GetTextLineHeight();
+            
+            static float blinkTimer = 0.0f;
+            blinkTimer += ImGui::GetIO().DeltaTime;
+            float blinkCycle = fmod(blinkTimer, 1.0f); // 1 segon per cicle
+            float alpha = (blinkCycle < 0.5f) ? 1.0f : 0.0f; // 500ms visible, 500ms invisible
+            
+            if (alpha > 0.0f) {
+                drawList->AddRectFilled(
+                    cursorPos,
+                    ImVec2(cursorPos.x + 8.0f, cursorPos.y + cursorHeight),
+                    IM_COL32(255, 255, 255, static_cast<int>(255 * alpha))
+                );
+            }
+            ImGui::Dummy(ImVec2(10.0f, 0.0f));
         }
     }
-
 
     void addPendingCommandResult(const json& result) {
         lock_guard<mutex> lock(pendingResultsMutex);
@@ -1422,20 +1420,19 @@ public:
         lock_guard<mutex> lock(messagesMutex);
         chatMessages.push_back({text, type});
     }
-
     void sendMessage(const string& message) {
         if (!isInitialized || message.empty() || isProcessingTask) return;
         
         lock_guard<mutex> lock(tokenCountMutex);
         currentQueryTokenCount = TokenCounter::countTokens(message);
 
-        // Afegir tokens i bytes del missatge d'usuari a la sessió
+        // Token counter
         sessionTotalTokens += TokenCounter::countTokens(message);
         sessionTotalBytes += message.length();
 
         addMessage("Tu: " + message, ChatMessage::USER);
         
-        // Crear un missatge d'IA buit que anirem actualitzant
+        // Create empty response to fill later
         streamingResponse = "";
         isStreaming = true;
         addMessage("IA: ", ChatMessage::AI);
@@ -1444,17 +1441,17 @@ public:
         isProcessingTask = true;
         requestFocusAfterResponse = true;
         
-        // Contador per saber quants chunks hem rebut
-        int chunkCounter = 0;
         // Utilitzar shared_ptr per compartir els comptadors entre lambdas
         auto totalResponseTokens = make_shared<int>(0);
         auto totalResponseBytes = make_shared<int>(0);
-        
-        // Utilitzar streaming amb tools
+
+        // chunk counter
+        int chunkCounter = 0;
+
         asyncTaskManager->submitStreamingTask(
             message,
             [this, chunkCounter, totalResponseTokens, totalResponseBytes](const string& chunk) mutable {
-                // Aquest callback s'executa quan arriba un chunk
+                // Called when chunk arrived
                 chunkCounter++;
                 cout << "[CHAT] Chunk " << chunkCounter << " obtained: '" << chunk << "'" << endl;
 
@@ -1466,29 +1463,28 @@ public:
                     currentQueryTokenCount = TokenCounter::countTokens(currentProcessingMessage) + *totalResponseTokens;
                 }
 
-                // Afegir el chunk a la resposta acumulada
+                // Add to full response
                 streamingResponse += chunk;
                 
-                // Actualitzar l'últim missatge d'IA
+                // Update last AI message
                 {
                     lock_guard<mutex> lock(messagesMutex);
                     if (!chatMessages.empty()) {
-                        // Buscar l'últim missatge d'IA (des del final)
+                        // Search last entry
                         for (int i = chatMessages.size() - 1; i >= 0; i--) {
                             if (chatMessages[i].type == ChatMessage::AI) {
-                                // Actualitzar el text del missatge
+                                // Update
                                 chatMessages[i].text = "IA: " + streamingResponse;
                                 break;
                             }
                         }
                     }
                 }
-                
-                // Processar qualsevol resultat de comanda pendent
+                // Process any command response pending
                 processPendingCommandResults();
             },
             [this, totalResponseTokens, totalResponseBytes]() {
-                // Aquest callback s'executa quan acaba el stream
+                // End stream 
                 isStreaming = false;
                 isProcessingTask = false;
                 {
@@ -1498,7 +1494,7 @@ public:
                     sessionTotalTokens += *totalResponseTokens;
                     sessionTotalBytes += *totalResponseBytes;
                 }
-
+                /*
                 // Si la resposta està buida, afegir un missatge indicant que s'ha executat una comanda
                 if (streamingResponse.empty()) {
                     lock_guard<mutex> lock(messagesMutex);
@@ -1507,8 +1503,9 @@ public:
                         chatMessages.back().text = "IA: [He executat una comanda de terminal]";
                     }
                 }
+                */
                 
-                // Processar qualsevol resultat pendent restant
+                // Process any command response pending
                 processPendingCommandResults();
                 
                 currentProcessingMessage.clear();
@@ -1540,7 +1537,7 @@ public:
             lock_guard<mutex> lock(pendingResultsMutex);
             pendingCommandResults.clear();
         }
-        // Netejar el comptador de tokens
+        // Clear token counter
         {
             lock_guard<mutex> lock(tokenCountMutex);
             currentQueryTokenCount = 0;
@@ -1579,15 +1576,15 @@ public:
         return true; // Per defecte, expandit
     }
     
-void toggleCommandExpanded(const string& commandId) {
-    lock_guard<mutex> lock(messagesMutex);
-    for (auto& state : commandOutputStates) {
-        if (state.commandId == commandId) {
-            state.isExpanded = !state.isExpanded;
-            break;
+    void toggleCommandExpanded(const string& commandId) {
+        lock_guard<mutex> lock(messagesMutex);
+        for (auto& state : commandOutputStates) {
+            if (state.commandId == commandId) {
+                state.isExpanded = !state.isExpanded;
+                break;
+            }
         }
     }
-}
     char* getTextBuffer() { return textBuffer; }
     size_t getTextBufferSize() const { return sizeof(textBuffer); }
     bool getIsInitialized() const { return isInitialized; }
@@ -1610,8 +1607,10 @@ void toggleCommandExpanded(const string& commandId) {
 int main(int argc, char *argv[]) {
     // Initialize GLFW
     if (!glfwInit()) {
+        cerr << "ERROR: Unable to initialize glfw" << endl;
         return 1;
     }
+    // @TODO detect and use the most
     // Configure OpenGL version
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -1625,19 +1624,17 @@ int main(int argc, char *argv[]) {
         glfwGetMonitorContentScale(primaryMonitor, &xscale, &yscale);
         mainScale = (xscale + yscale) / 2.0f;
     }
-    
     GLFWwindow* window = glfwCreateWindow(
         (int)(400 * mainScale), 
         (int)(600 * mainScale), 
         "", 
         nullptr, nullptr
     );
-    
     if (window == nullptr) {
+        cerr << "ERROR: Unable to create glfw window" << endl;
         glfwTerminate();
         return 2;
     }
-    
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
@@ -1652,24 +1649,18 @@ int main(int argc, char *argv[]) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
+    // set aspect
     ImGuiStyle& style = ImGui::GetStyle();
-    // Arrodonir botons
-    style.FrameRounding = 8.0f;
-    // Arrodonir camps de text
-    style.FrameBorderSize = 1.0f;
-    // Arrodonir finestres
-    style.WindowRounding = 10.0f;
-    // Arrodonir popups
-    style.PopupRounding = 8.0f;
-    // Arrodonir elements de scrollbar
-    style.ScrollbarRounding = 8.0f;
-    // Arrodonir sliders
-    style.GrabRounding = 8.0f;
-    // Arrodonir tabs
-    style.TabRounding = 8.0f;
-    // Arrodonir child windows
-    style.ChildRounding = 8.0f;
-
+    // Rounding
+    style.FrameRounding = 8.0f; // buttons
+    style.FrameBorderSize = 1.0f; // text
+    style.WindowRounding = 10.0f; // windows
+    style.PopupRounding = 8.0f; // popups
+    style.ScrollbarRounding = 8.0f; // scrollbar
+    style.GrabRounding = 8.0f; // slider
+    style.TabRounding = 8.0f; // tabs
+    style.ChildRounding = 8.0f; // windows
+    // colors
     ImVec4 bgColor = ImVec4(0.15f, 0.18f, 0.25f, 1.0f);
     style.Colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.23f, 0.30f, 1.0f);
     style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.25f, 0.28f, 0.35f, 1.0f);
@@ -1682,7 +1673,6 @@ int main(int argc, char *argv[]) {
     static float chatInputHeight = 40.0f;
     static bool setFocusToInput = true;
     
-    
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -1690,7 +1680,6 @@ int main(int argc, char *argv[]) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
         
@@ -1729,9 +1718,8 @@ int main(int argc, char *argv[]) {
                     int tokenCount = chatApp.getCurrentQueryTokenCount();
                     ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, alpha), "Inferencing (%d)...", tokenCount);
                 } else {
-                    // Obtenir estadístiques de sessió
+                    // Session stats
                     auto [sessionTokens, sessionBytes] = chatApp.getSessionStats();
-                    // Mostrar "Online" amb estadístiques de sessió
                     ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Ready (%d tokens, %d chars)", 
                                       sessionTokens, sessionBytes);
                 }
@@ -1761,7 +1749,7 @@ int main(int argc, char *argv[]) {
 
         ImGui::BeginChild("ChatArea", ImVec2(0, availableHeight), false, ImGuiWindowFlags_None);
         
-        // Context menu in ChatArea
+        // Context menu
         if (ImGui::BeginPopupContextWindow("ChatContextMenu")) {
             if (ImGui::MenuItem("Copy all")) {
                 string allChatText = chatApp.getAllChatText();
