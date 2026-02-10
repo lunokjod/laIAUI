@@ -28,6 +28,7 @@ set(SOURCES
     imgui/imgui_widgets.cpp
     imgui/backends/imgui_impl_glfw.cpp
     imgui/backends/imgui_impl_opengl3.cpp
+    imgui/misc/cpp/imgui_stdlib.cpp
 )
 
 # Header files

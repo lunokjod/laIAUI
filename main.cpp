@@ -5,6 +5,7 @@
 #include "chat_application.hpp"
 #include <iostream>
 #include <csignal>
+#include "imgui/misc/cpp/imgui_stdlib.h"
 
 using namespace std;
 
@@ -327,8 +328,7 @@ int main(int argc, char *argv[]) {
         ImGui::PushItemWidth(textInputWidth);
         bool textEnterPressed = ImGui::InputTextMultiline(
             "##TextInput",
-            chatApp.getTextBuffer(), 
-            chatApp.getTextBufferSize(),
+            &chatApp.getTextBuffer(), // Passar per referència
             ImVec2(textInputWidth, chatInputHeight),
             ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_EnterReturnsTrue
         );
@@ -358,10 +358,13 @@ int main(int argc, char *argv[]) {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "%s", currentDir.c_str());
 
         // Send message when Enter is pressed or Send button is clicked
-        if ((textEnterPressed || sendButtonPressed) && chatApp.getTextBuffer()[0] != '\0' && !chatApp.getIsProcessingTask()) {
+        if ((textEnterPressed || sendButtonPressed) && 
+            !chatApp.getTextBuffer().empty() && 
+            !chatApp.getIsProcessingTask()) {
+            
             string message = chatApp.getTextBuffer();
             chatApp.sendMessage(message);
-            memset(chatApp.getTextBuffer(), 0, chatApp.getTextBufferSize());
+            chatApp.getTextBuffer().clear();  // Netejar
             setFocusToInput = true;
         }
         // Check if we should request focus after a response is complete

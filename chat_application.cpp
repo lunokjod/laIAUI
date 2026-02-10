@@ -4,12 +4,17 @@
 #include <fstream>
 #include "imgui/imgui.h"
 
-ChatApplication::ChatApplication() : isInitialized(false), isProcessingTask(false), 
-                                   requestFocusAfterResponse(false), toolsEnabled(false),
-                                   isStreaming(false), nextCommandId(0),
-                                   currentQueryTokenCount(0),
-                                   sessionTotalTokens(0), sessionTotalBytes(0) {
-    memset(textBuffer, 0, sizeof(textBuffer));
+
+ChatApplication::ChatApplication() : 
+    isInitialized(false), 
+    isProcessingTask(false), 
+    requestFocusAfterResponse(false), 
+    toolsEnabled(false),
+    isStreaming(false), 
+    currentQueryTokenCount(0),
+    nextCommandId(0),
+    sessionTotalTokens(0), 
+    sessionTotalBytes(0) {
 }
 
 ChatApplication::~ChatApplication() { }
@@ -217,14 +222,6 @@ void ChatApplication::showCommandResultImmediately(const json& result) {
         
         chatMessages.push_back(cmdMessage);
     }
-}
-
-char* ChatApplication::getTextBuffer() { 
-    return textBuffer; 
-}
-
-size_t ChatApplication::getTextBufferSize() const { 
-    return sizeof(textBuffer); 
 }
 
 bool ChatApplication::getIsInitialized() const { 

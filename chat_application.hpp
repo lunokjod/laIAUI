@@ -27,7 +27,8 @@ private:
     mutable int sessionTotalBytes;
     
     unique_ptr<AsyncTaskManager> asyncTaskManager;
-    char textBuffer[32768];
+    //char textBuffer[32768];
+    std::string textBuffer;
     bool isInitialized;
     bool isProcessingTask;
     string currentProcessingMessage;
@@ -69,8 +70,10 @@ public:
     bool isCommandExpanded(const string& commandId) const;
     void toggleCommandExpanded(const string& commandId);
     
-    char* getTextBuffer();
-    size_t getTextBufferSize() const;
+    std::string& getTextBuffer() { return textBuffer; }
+    const std::string& getTextBuffer() const { return textBuffer; }
+
+    //size_t getTextBufferSize() const;
     bool getIsInitialized() const;
     bool getIsProcessingTask() const;
     bool getIsStreaming() const;
