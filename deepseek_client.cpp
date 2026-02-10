@@ -331,7 +331,8 @@ size_t DeepSeekClient::StreamingWriteCallback(void* contents, size_t size, size_
                             
                             if (delta.contains("tool_calls") && !delta["tool_calls"].empty()) {
                                 for (auto& toolCallDelta : delta["tool_calls"]) {
-                                    int index = toolCallDelta.value("index", 0);
+                                    //int index = toolCallDelta.value("index", 0);
+                                    size_t index = static_cast<size_t>(toolCallDelta["index"].get<int>());
                                     
                                     if (index >= streamData->toolCalls.size()) {
                                         streamData->toolCalls.resize(index + 1);

@@ -14,6 +14,8 @@ atomic<bool> g_interrupted(false);
 atomic<bool> g_inChatLoop(false);
 
 int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     // Initialize GLFW
     if (!glfwInit()) {
         cerr << "ERROR: Unable to initialize glfw" << endl;
@@ -67,7 +69,7 @@ int main(int argc, char *argv[]) {
     style.TabRounding = 8.0f;
     style.ChildRounding = 8.0f;
     
-    ImVec4 bgColor = ImVec4(0.15f, 0.18f, 0.25f, 1.0f);
+    //ImVec4 bgColor = ImVec4(0.15f, 0.18f, 0.25f, 1.0f);
     style.Colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.23f, 0.30f, 1.0f);
     style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.25f, 0.28f, 0.35f, 1.0f);
     style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.30f, 0.33f, 0.40f, 1.0f);

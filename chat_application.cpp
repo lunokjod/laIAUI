@@ -6,15 +6,15 @@
 
 
 ChatApplication::ChatApplication() : 
-    isInitialized(false), 
-    isProcessingTask(false), 
-    requestFocusAfterResponse(false), 
-    toolsEnabled(false),
-    isStreaming(false), 
     currentQueryTokenCount(0),
-    nextCommandId(0),
-    sessionTotalTokens(0), 
-    sessionTotalBytes(0) {
+    sessionTotalTokens(0),
+    sessionTotalBytes(0),
+    isInitialized(false),
+    isProcessingTask(false),
+    requestFocusAfterResponse(false),
+    toolsEnabled(false),
+    isStreaming(false),
+    nextCommandId(0) { 
 }
 
 ChatApplication::~ChatApplication() { }
@@ -288,7 +288,7 @@ void ChatApplication::addToSessionStats(int tokens, int bytes) {
     sessionTotalBytes += bytes;
 }
 
-void ChatApplication::renderMarkdownText(const string& text, bool isStreaming) {
+void ChatApplication::renderMarkdownText(const string& text) {
     if (text.empty()) return;
     
     vector<string> lines;
@@ -534,7 +534,7 @@ void ChatApplication::renderTextWithMarkdown(const string& text, bool isStreamin
         ImGui::Text("%s", prefix.c_str());
         ImGui::SameLine(0, 0);
     }
-    renderMarkdownText(displayText, isStreaming);
+    renderMarkdownText(displayText);
     
     if (isStreaming) {
         ImGui::SameLine(0, 0);

@@ -50,7 +50,7 @@ private:
     int nextCommandId;
     vector<ChatMessage> chatMessages;
     
-    static void renderMarkdownText(const string& text, bool isStreaming = false);
+    static void renderMarkdownText(const string& text);
     void addPendingCommandResult(const json& result);
     void processPendingCommandResults();
     void showCommandResultImmediately(const json& result);
