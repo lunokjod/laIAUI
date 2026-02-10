@@ -341,7 +341,7 @@ private:
     }
 };
 
-// DeepSeek client class (simplified for GUI)
+// DeepSeek client class
 class DeepSeekClient {
 private:
     string apiKey;
@@ -353,33 +353,30 @@ private:
     vector<json> lastCommandResults;
     vector<json> pendingCommandResults;
     function<void(const json&)>* onCommandResult;
-    // Estructura per acumular dades de streaming
+    
     struct StreamData {
         string buffer;
         string fullResponse;
         vector<json> toolCalls;
         bool inToolCall;
-        function<void(const string&)>* onChunk; // Afegir punter al callback
+        function<void(const string&)>* onChunk; // Pointer to callback
     };
     int countTextTokens(const string& text) const {
         return TokenCounter::countTokens(text);
     }
-    // Callback per streaming
+    // Streaming callback
     static size_t StreamingWriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
         size_t totalSize = size * nmemb;
         char* data = static_cast<char*>(contents);
         
-        // userp és un punter a StreamData
         StreamData* streamData = static_cast<StreamData*>(userp);
         
-        if (!streamData || !streamData->onChunk) {
-            return 0; // Error: dades nul·les
-        }
+        if (!streamData || !streamData->onChunk) { return 0; }
         
-        // Afegir les dades al buffer
+        // Append data to buffer
         streamData->buffer.append(data, totalSize);
         
-        // Processar les línies completes immediatament
+        // Process complete lines
         size_t newlinePos;
         while ((newlinePos = streamData->buffer.find('\n')) != string::npos) {
             string line = streamData->buffer.substr(0, newlinePos);
@@ -402,12 +399,12 @@ private:
                             if (choice.contains("delta")) {
                                 auto& delta = choice["delta"];
                                 
-                                // Contingut textual
+                                // Get text response
                                 if (delta.contains("content") && !delta["content"].is_null()) {
                                     string content = delta["content"];
                                     if (!content.empty()) {
                                         streamData->fullResponse += content;
-                                        // Enviar el chunk al callback
+                                        // Send to callback
                                         try {
                                             (*streamData->onChunk)(content);
                                         } catch (const bad_function_call& e) {
@@ -421,14 +418,13 @@ private:
                                     for (auto& toolCallDelta : delta["tool_calls"]) {
                                         int index = toolCallDelta.value("index", 0);
                                         
-                                        // Assegurar-nos que tenim espai per a aquest tool call
+                                        // Resize to fit the tool call
                                         if (index >= streamData->toolCalls.size()) {
                                             streamData->toolCalls.resize(index + 1);
                                         }
                                         
                                         auto& toolCall = streamData->toolCalls[index];
                                         
-                                        // Inicialitzar tool call si és necessari
                                         if (toolCall.is_null()) {
                                             toolCall = {
                                                 {"id", ""},
@@ -440,20 +436,16 @@ private:
                                             };
                                         }
                                         
-                                        // Actualitzar ID
                                         if (toolCallDelta.contains("id")) {
                                             toolCall["id"] = toolCallDelta["id"];
                                         }
                                         
-                                        // Actualitzar nom de la funció
-                                        if (toolCallDelta.contains("function") && 
-                                            toolCallDelta["function"].contains("name")) {
+                                        if (toolCallDelta.contains("function") && toolCallDelta["function"].contains("name")) {
                                             toolCall["function"]["name"] = toolCallDelta["function"]["name"];
                                         }
                                         
-                                        // Actualitzar arguments (acumular)
-                                        if (toolCallDelta.contains("function") && 
-                                            toolCallDelta["function"].contains("arguments")) {
+                                        
+                                        if (toolCallDelta.contains("function") && toolCallDelta["function"].contains("arguments")) {
                                             string newArgs = toolCallDelta["function"]["arguments"];
                                             toolCall["function"]["arguments"] = 
                                                 toolCall["function"]["arguments"].get<string>() + newArgs;
@@ -465,7 +457,7 @@ private:
                             }
                         }
                     } catch (const json::exception& e) {
-                        // Ignorar errors de parsing en streaming
+                        // Ignore parse errors for partial JSON
                     }
                 }
             }
@@ -496,7 +488,7 @@ public:
     }
     
     ~DeepSeekClient() {
-        // Netejar el callback
+        // remove callback
         if (onCommandResult) {
             delete onCommandResult;
             onCommandResult = nullptr;
@@ -526,7 +518,7 @@ public:
         // Add system prompt
         string systemPrompt = "Ets un assistent AI útil que parla català. Pots executar comandes de terminal quan sigui necessari. No usis emoticones.";
         
-        // Intentar llegir el fitxer prompt.md del directori actual
+        // Try to get local path prompt
         string promptFilePath = terminal->getCurrentDir() + "/prompt.md";
         ifstream promptFile(promptFilePath);
         
@@ -536,18 +528,16 @@ public:
             string customPrompt = buffer.str();
             
             if (!customPrompt.empty()) {
-                // Afegir el contingut del prompt.md al system prompt
+                // Add custom folder prompt to system prompt
                 systemPrompt = systemPrompt + "\n\n" +  customPrompt;
                 cout << "CUSTOM PROMPT: " << customPrompt << endl;
             }
             promptFile.close();
         }
         
-        messages.push_back({{"role", "system"}, {"content", systemPrompt}});        // Add chat history
-
-        for (const auto& msg : chatHistory) {
-            messages.push_back(msg);
-        }
+        // Add chat history
+        messages.push_back({{"role", "system"}, {"content", systemPrompt}});
+        for (const auto& msg : chatHistory) { messages.push_back(msg); }
         
         // Add current user message
         messages.push_back({{"role", "user"}, {"content", userMessage}});
@@ -581,7 +571,6 @@ public:
             
             string url = baseUrl + "/chat/completions";
             
-            // Crear StreamData amb el callback
             StreamData* streamData = new StreamData();
             streamData->onChunk = new function<void(const string&)>(onChunk);
             
@@ -601,7 +590,6 @@ public:
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, streamData);
             curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L);
             
-            // Configurar per streaming
             curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 1024);
             curl_easy_setopt(curl, CURLOPT_TCP_NODELAY, 1L);
             
@@ -610,10 +598,9 @@ public:
             curl_slist_free_all(headers);
             curl_easy_cleanup(curl);
             
-            // Guardar la resposta completa
             fullResponse = streamData->fullResponse;
             
-            // Netejar tool calls buits
+            // Clean empty tool calls
             vector<json> validToolCalls;
             for (const auto& toolCall : streamData->toolCalls) {
                 if (!toolCall.is_null() && !toolCall["function"]["name"].get<string>().empty()) {
@@ -621,7 +608,6 @@ public:
                 }
             }
             
-            // Alliberar memòria
             delete streamData->onChunk;
             delete streamData;
             
@@ -630,9 +616,9 @@ public:
                 return {fullResponse, messages};
             }
             
-            // Si hi ha tool calls, processar-les
+            // Pending valid tool calls?
             if (!validToolCalls.empty()) {
-                // Afegir missatge de l'assistent amb tool calls
+
                 json assistantMessage = {
                     {"role", "assistant"},
                     {"content", fullResponse}
@@ -645,19 +631,17 @@ public:
                 messages.push_back(assistantMessage);
                 auto toolResults = processToolCalls(validToolCalls);
                 
-                // Afegir resultats de tools als missatges
+                // Add tool results to messages
                 for (const auto& result : toolResults) {
                     messages.push_back(result);
                 }
-                
-                // Continuar el bucle per la següent iteració
+                // try one more
                 continue;
             }
             
-            // No hi ha més tool calls, sortir del bucle
+            // No more tool calls
             break;
         }
-        
         return {fullResponse, messages};
     }
 
@@ -705,12 +689,11 @@ public:
             {"currentDirectory", terminal->getCurrentDir()}
         };
         
-        // Mostrar el resultat immediatament si hi ha callback
         if (onCommandResult) {
             try {
                 (*onCommandResult)(formattedResult);
             } catch (const bad_function_call& e) {
-                // Ignorar si el callback no és vàlid
+                // Ignore bad callback
             }
         }
         
@@ -719,8 +702,8 @@ public:
 
     vector<json> processToolCalls(const vector<json>& toolCalls) {
         vector<json> toolResults;
-        lastCommandResults.clear(); // Netejar resultats anteriors
-        pendingCommandResults.clear(); // Netejar resultats pendents
+        lastCommandResults.clear(); // Clear last results
+        pendingCommandResults.clear(); // Clean pending results
         
         for (const auto& toolCall : toolCalls) {
             if (toolCall.is_null()) continue;
@@ -735,9 +718,8 @@ public:
                 
                 if (functionName == "shell_exec") {
                     result = handleShellExec(functionArgs);
-                    // Guardar el resultat per mostrar-lo després
                     lastCommandResults.push_back(result);
-                    pendingCommandResults.push_back(result); // Afegir als pendents
+                    pendingCommandResults.push_back(result); // add to pending
                 } else {
                     result = {{"error", "Unknown function: " + functionName}, {"status", "error"}};
                 }
@@ -763,7 +745,6 @@ public:
         return lastCommandResults;
     }
     
-    // Nou mètode: obtenir i netejar resultats pendents
     vector<json> getAndClearPendingCommandResults() {
         vector<json> results = pendingCommandResults;
         pendingCommandResults.clear();
@@ -834,7 +815,6 @@ private:
             
             if (!task.message.empty() && deepSeekClient) {
                 try {
-                    // Utilitzar el nou mètode que processa tool calls
                     deepSeekClient->chatStream(task.message, task.onChunk, task.useTools);
                     if (task.onComplete) {
                         task.onComplete();
@@ -933,32 +913,27 @@ public:
 // Main application class
 class ChatApplication {
 private:
-    // Comptador de tokens per a la consulta actual
     mutable int currentQueryTokenCount;
     mutable mutex tokenCountMutex;
     mutable int sessionTotalTokens;
     mutable int sessionTotalBytes;
 
 public:
-    // Obtenir el comptador de tokens de la consulta actual
     int getCurrentQueryTokenCount() const {
         lock_guard<mutex> lock(tokenCountMutex);
         return currentQueryTokenCount;
     }
     
-    // Obtenir estadístiques de sessió
     pair<int, int> getSessionStats() const {
         lock_guard<mutex> lock(tokenCountMutex);
         return {sessionTotalTokens, sessionTotalBytes};
     }
     
-    // Reiniciar el comptador de tokens
     void resetTokenCount() {
         lock_guard<mutex> lock(tokenCountMutex);
         currentQueryTokenCount = 0;
     }
     
-    // Afegir tokens i bytes a la sessió
     void addToSessionStats(int tokens, int bytes) {
         lock_guard<mutex> lock(tokenCountMutex);
         sessionTotalTokens += tokens;
@@ -976,14 +951,13 @@ private:
     string streamingResponse;
     bool isStreaming;
     
-    // Mutex per protegir l'accés a les llistes de missatges
     mutable mutex messagesMutex;
     mutable mutex pendingResultsMutex;
-    vector<json> pendingCommandResults; // Resultats pendents de mostrar
+    vector<json> pendingCommandResults;
 
     struct CommandOutputState {
         bool isExpanded;
-        string commandId; // Identificador únic per a cada comanda
+        string commandId;
     };
     
     vector<CommandOutputState> commandOutputStates;
