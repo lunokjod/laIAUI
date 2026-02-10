@@ -1,88 +1,63 @@
 cmake_minimum_required(VERSION 3.15)
-project(laIAUI)
+project(laIA)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Opción para compilación estática
-option(BUILD_STATIC "Build as static executable" OFF)
-
-# Configurar enlace estático si está activado
-if(BUILD_STATIC)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    set(BUILD_SHARED_LIBRARIES OFF)
-    set(CMAKE_EXE_LINK_DYNAMIC_CXX_STD_LIBRARY OFF)
-    message(STATUS "Building static executable")
-endif()
-
-find_package(CURL REQUIRED)
-find_package(Threads REQUIRED)
-find_package(nlohmann_json REQUIRED)
-
-# Configuració de GLFW
-find_package(glfw3 3.3 REQUIRED)
+# Find packages
 find_package(OpenGL REQUIRED)
+find_package(glfw3 REQUIRED)
+find_package(CURL REQUIRED)
 
-message(STATUS "Building with GLFW backend")
+# Include directories
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends)
 
-# Fitxers font d'ImGui (comuns)
-set(IMGUI_COMMON_SOURCES
+# Source files
+set(SOURCES
+    main.cpp
+    token_counter.cpp
+    terminal_emulator.cpp
+    deepseek_client.cpp
+    async_task_manager.cpp
+    chat_application.cpp
     imgui/imgui.cpp
     imgui/imgui_draw.cpp
     imgui/imgui_tables.cpp
     imgui/imgui_widgets.cpp
-)
-
-# Fitxers font específics del backend
-set(IMGUI_BACKEND_SOURCES
     imgui/backends/imgui_impl_glfw.cpp
     imgui/backends/imgui_impl_opengl3.cpp
 )
 
-# Afegir executable amb TOTS els fitxers font
-add_executable(${PROJECT_NAME} 
-    main.cpp
-    ${IMGUI_COMMON_SOURCES}
-    ${IMGUI_BACKEND_SOURCES}
+# Header files
+set(HEADERS
+    token_counter.hpp
+    terminal_emulator.hpp
+    deepseek_client.hpp
+    async_task_manager.hpp
+    chat_application.hpp
 )
 
-# Incloure directoris d'ImGui
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
-)
+# Add executable
+add_executable(laIA ${SOURCES} ${HEADERS})
 
-# Enllaçar llibreries comunes
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${CURL_LIBRARIES}
-    Threads::Threads
-    nlohmann_json::nlohmann_json
-)
-
-# Enllaçar llibreries específiques del backend
-target_link_libraries(${PROJECT_NAME} PRIVATE
+# Link libraries
+target_link_libraries(laIA
+    ${OPENGL_LIBRARIES}
     glfw
-    OpenGL::GL
+    ${CURL_LIBRARIES}
+    pthread
 )
 
-if(UNIX AND NOT APPLE)
-    if(BUILD_STATIC)
-        # Para enlace estático en Linux
-        target_link_libraries(${PROJECT_NAME} PRIVATE
-            ${CMAKE_DL_LIBS}
-            ${CMAKE_THREAD_LIBS_INIT}
-            m
-            rt
-        )
-    else()
-        # Enlace dinámico (configuración original)
-        target_link_libraries(${PROJECT_NAME} PRIVATE
-            GL
-            X11
-            pthread
-            dl
-            m
-        )
-    endif()
+# Add nlohmann/json
+find_package(nlohmann_json 3.2.0 REQUIRED)
+target_link_libraries(laIA nlohmann_json::nlohmann_json)
+
+# Compiler flags
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(laIA PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+# Installation
+install(TARGETS laIA DESTINATION bin)
