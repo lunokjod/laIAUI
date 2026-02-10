@@ -31,33 +31,55 @@ void AsyncTaskManager::streamingWorkerFunction() {
         
         {
             unique_lock<mutex> lock(streamingMutex);
-            streamingCondition.wait(lock, [this]() {
-                return !streamingQueue.empty() || !streamingRunning;
+            streamingCondition.wait(lock, [this]() { 
+                return !streamingQueue.empty() || !streamingRunning; 
             });
             
-            if (!streamingRunning && streamingQueue.empty()) {
-                break;
-            }
+            if (!streamingRunning) break;
             
-            if (!streamingQueue.empty()) {
-                task = move(streamingQueue.front());
-                streamingQueue.pop();
-            }
+            task = streamingQueue.front();
+            streamingQueue.pop();
         }
         
-        if (!task.message.empty() && deepSeekClient) {
-            try {
-                deepSeekClient->chatStream(task.message, task.onChunk, task.useTools);
-                if (task.onComplete) {
-                    task.onComplete();
-                }
-            } catch (const exception& e) {
-                if (task.onChunk) {
-                    task.onChunk("Error: " + string(e.what()));
-                }
-            }
+        // Verificar cancel·lació abans d'executar
+        if (task.cancelFlag && task.cancelFlag->load()) {
+            delete task.cancelFlag;
+            continue;
+        }
+        
+        deepSeekClient->chatStream(task.message, task.onChunk, task.useTools);
+        
+        // Netejar el flag de cancel·lació
+        if (task.cancelFlag) {
+            delete task.cancelFlag;
+        }
+        
+        if (task.onComplete) {
+            task.onComplete();
         }
     }
+}
+
+void AsyncTaskManager::cancelCurrentTask() {
+    if (deepSeekClient) {
+        deepSeekClient->cancelCurrentRequest();
+    }
+    
+    // També podem netejar la cua si volem cancel·lar tot
+    {
+        lock_guard<mutex> lock(streamingMutex);
+        while (!streamingQueue.empty()) {
+            auto& task = streamingQueue.front();
+            if (task.cancelFlag) {
+                task.cancelFlag->store(true);
+            }
+            streamingQueue.pop();
+        }
+    }
+}
+
+bool AsyncTaskManager::isTaskCancellable() const {
+    return deepSeekClient && deepSeekClient->isCancelRequested();
 }
 
 void AsyncTaskManager::submitStreamingTask(const string& message, 
@@ -69,7 +91,8 @@ void AsyncTaskManager::submitStreamingTask(const string& message,
     task.useTools = useTools;
     task.onChunk = onChunk;
     task.onComplete = onComplete;
-    
+    task.cancelFlag = new atomic<bool>(false);
+
     {
         lock_guard<mutex> lock(streamingMutex);
         streamingQueue.push(move(task));

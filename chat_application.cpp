@@ -4,7 +4,6 @@
 #include <fstream>
 #include "imgui/imgui.h"
 
-
 ChatApplication::ChatApplication() : 
     currentQueryTokenCount(0),
     sessionTotalTokens(0),
@@ -14,7 +13,8 @@ ChatApplication::ChatApplication() :
     requestFocusAfterResponse(false),
     toolsEnabled(false),
     isStreaming(false),
-    nextCommandId(0) { 
+    nextCommandId(0),
+    cancelRequested(false) { 
 }
 
 ChatApplication::~ChatApplication() { }
@@ -43,7 +43,7 @@ void ChatApplication::update() {
 
 void ChatApplication::sendMessage(const string& message) {
     if (!isInitialized || message.empty() || isProcessingTask) return;
-    
+    cancelRequested.store(false);
     lock_guard<mutex> lock(tokenCountMutex);
     currentQueryTokenCount = TokenCounter::countTokens(message);
     sessionTotalTokens += TokenCounter::countTokens(message);
@@ -109,7 +109,35 @@ void ChatApplication::sendMessage(const string& message) {
     );
 }
 
+void ChatApplication::cancelCurrentInference() {
+    cancelRequested.store(true);
+    if (asyncTaskManager) {
+        asyncTaskManager->cancelCurrentTask();
+    }
+    
+    // Actualitzar estat
+    isStreaming = false;
+    isProcessingTask = false;
+    
+    // Afegir missatge de cancel·lació
+    addMessage("[Inferència cancel·lada per l'usuari]", ChatMessage::SYSTEM);
+    
+    // Netejar estat actual
+    currentProcessingMessage.clear();
+    streamingResponse.clear();
+    
+    // Sol·licitar focus
+    requestFocusAfterResponse = true;
+}
+
+bool ChatApplication::isInferenceCancellable() const {
+    return isProcessingTask || isStreaming;
+}
+
 void ChatApplication::clearChat() {
+    if (isProcessingTask || isStreaming) {
+        cancelCurrentInference();
+    }
     if (asyncTaskManager) {
         asyncTaskManager->clearChatHistory();
     }

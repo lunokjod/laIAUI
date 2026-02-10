@@ -1,12 +1,13 @@
 #include "deepseek_client.hpp"
-#include <curl/curl.h>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <iostream>
+#include <mutex>
 
 DeepSeekClient::DeepSeekClient(const string& apiKey, const string& baseUrl)
-    : baseUrl(baseUrl), model("deepseek-chat"), maxChatHistory(1000), onCommandResult(nullptr) {
+    : baseUrl(baseUrl), model("deepseek-chat"), maxChatHistory(1000), 
+      onCommandResult(nullptr), cancelRequested(false), currentCurlHandle(nullptr) {
     lastCommandResults.clear();
     pendingCommandResults.clear();
     if (!apiKey.empty()) {
@@ -24,7 +25,21 @@ DeepSeekClient::DeepSeekClient(const string& apiKey, const string& baseUrl)
     curl_global_init(CURL_GLOBAL_DEFAULT);
 }
 
+bool DeepSeekClient::isCancelRequested() const {
+    return cancelRequested.load();
+}
+
+void DeepSeekClient::cancelCurrentRequest() {
+    cancelRequested.store(true);
+    lock_guard<mutex> lock(curlMutex);
+    if (currentCurlHandle) {
+        curl_easy_cleanup(currentCurlHandle);
+        currentCurlHandle = nullptr;
+    }
+}
+
 DeepSeekClient::~DeepSeekClient() {
+    cancelCurrentRequest();
     if (onCommandResult) {
         delete onCommandResult;
         onCommandResult = nullptr;
@@ -46,7 +61,9 @@ pair<string, vector<json>> DeepSeekClient::chatWithToolsStreaming(
     float temperature,
     int maxTokens,
     int maxIterations) {
-    
+
+    cancelRequested.store(false);
+
     vector<json> messages;
     string fullResponse = "";
     int iteration = 0;
@@ -98,7 +115,10 @@ pair<string, vector<json>> DeepSeekClient::chatWithToolsStreaming(
             onChunk("Error: Unable to initialize cURL");
             return {fullResponse, messages};
         }
-        
+        {
+            lock_guard<mutex> lock(curlMutex);
+            currentCurlHandle = curl;
+        }        
         string url = baseUrl + "/chat/completions";
         
         StreamData* streamData = new StreamData();
@@ -120,14 +140,32 @@ pair<string, vector<json>> DeepSeekClient::chatWithToolsStreaming(
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, streamData);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L);
         
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, 
+            [](void* clientp, curl_off_t dltotal, curl_off_t dlnow,
+            curl_off_t ultotal, curl_off_t ulnow) -> int {
+                DeepSeekClient* client = static_cast<DeepSeekClient*>(clientp);
+                return client->isCancelRequested() ? 1 : 0;
+            });
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
+                
         curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 1024);
         curl_easy_setopt(curl, CURLOPT_TCP_NODELAY, 1L);
         
         CURLcode res = curl_easy_perform(curl);
-        
+        {
+            lock_guard<mutex> lock(curlMutex);
+            currentCurlHandle = nullptr;
+        }
+            
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
         
+        if (cancelRequested.load()) {
+            onChunk("\n\n[Cancel·lat per l'usuari]");
+            return {fullResponse + "\n\n[Cancel·lat per l'usuari]", messages};
+        }
+
         fullResponse = streamData->fullResponse;
         
         vector<json> validToolCalls;

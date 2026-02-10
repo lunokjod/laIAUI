@@ -83,6 +83,9 @@ int main(int argc, char *argv[]) {
     
     // Main loop
     while (!glfwWindowShouldClose(window)) {
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && chatApp.isInferenceCancellable()) {
+            chatApp.cancelCurrentInference();
+        }
         glfwPollEvents();
         chatApp.update();
         ImGui_ImplOpenGL3_NewFrame();

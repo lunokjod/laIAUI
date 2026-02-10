@@ -5,14 +5,25 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <atomic>
+#include <mutex> 
 #include <nlohmann/json.hpp>
 #include "terminal_emulator.hpp"
 #include "token_counter.hpp"
+#include <curl/curl.h>
 
 using json = nlohmann::json;
 using namespace std;
 
 class DeepSeekClient {
+private:
+    atomic<bool> cancelRequested;
+    CURL* currentCurlHandle;
+    mutex curlMutex;
+
+public:
+    void cancelCurrentRequest();
+    bool isCancelRequested() const;
 private:
     string apiKey;
     string baseUrl;

@@ -22,6 +22,7 @@ private:
         bool useTools;
         function<void(const string&)> onChunk;
         function<void()> onComplete;
+        atomic<bool>* cancelFlag;
     };
     
     queue<StreamingTask> streamingQueue;
@@ -49,6 +50,9 @@ public:
     bool isInitialized() const;
     vector<json> getLastCommandResults() const;
     vector<json> getAndClearPendingCommandResults();
+    void cancelCurrentTask();
+    bool isTaskCancellable() const;
+
 };
 
 #endif

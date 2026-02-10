@@ -19,8 +19,10 @@ public:
         string text;
         enum Type { USER, AI, COMMAND_OUTPUT, COMMAND_ERROR, SYSTEM } type;
     };
-    
+    void cancelCurrentInference();
+    bool isInferenceCancellable() const;    
 private:
+    atomic<bool> cancelRequested;
     mutable int currentQueryTokenCount;
     mutable mutex tokenCountMutex;
     mutable int sessionTotalTokens;
