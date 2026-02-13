@@ -167,7 +167,12 @@ int main(int argc, char *argv[]) {
         
         // Display chat messages with colors
         const auto messages = chatApp.getChatMessages();
-        for (size_t i = 0; i < messages.size(); i++) {
+        size_t startIndex = 0;
+        const size_t MAX_HISTORY=20;
+        if (messages.size() > MAX_HISTORY) {
+            startIndex = messages.size() - MAX_HISTORY;
+        }
+        for (size_t i = startIndex; i < messages.size(); i++) {
             const auto& message = messages[i];
             
             if (message.type == ChatApplication::ChatMessage::COMMAND_OUTPUT && 

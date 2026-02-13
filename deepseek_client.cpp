@@ -6,8 +6,7 @@
 #include <mutex>
 
 DeepSeekClient::DeepSeekClient(const string& apiKey, const string& baseUrl)
-    : baseUrl(baseUrl), model("deepseek-chat"), maxChatHistory(1000), 
-      onCommandResult(nullptr), cancelRequested(false), currentCurlHandle(nullptr) {
+    : baseUrl(baseUrl), model("deepseek-chat"), cancelRequested(false), maxChatHistory(1000), currentCurlHandle(nullptr) , onCommandResult(nullptr) {
     lastCommandResults.clear();
     pendingCommandResults.clear();
     if (!apiKey.empty()) {

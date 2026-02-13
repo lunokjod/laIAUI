@@ -22,6 +22,7 @@ public:
     void cancelCurrentInference();
     bool isInferenceCancellable() const;    
 private:
+    int nextCommandId;
     atomic<bool> cancelRequested;
     mutable int currentQueryTokenCount;
     mutable mutex tokenCountMutex;
@@ -49,7 +50,6 @@ private:
     };
     
     vector<CommandOutputState> commandOutputStates;
-    int nextCommandId;
     vector<ChatMessage> chatMessages;
     
     static void renderMarkdownText(const string& text);
